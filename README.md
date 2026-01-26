@@ -179,8 +179,9 @@ nexsteaduser-os/
 
 ### 许可证
 
-MIT License
+
 
 ---
 
 **Nexsteaduser OS** - 从零开始的操作系统开发之旅
+
