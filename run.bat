@@ -1,0 +1,3 @@
+@echo off
+echo Running Nexsteaduser OS in QEMU...
+qemu-system-x86_64 -cdrom nexsteaduser-os.iso -m 512M -serial stdio

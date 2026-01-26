@@ -1,0 +1,23 @@
+[package]
+name = "nexsteaduser-os"
+version = "0.2.0.3"
+edition = "2021"
+
+[dependencies]
+bootloader = { path = "bootloader" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+opt-level = "z"
+
+[workspace]
+members = [
+    "kernel",
+    "bootloader",
+    "python/ffi",
+]
