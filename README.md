@@ -17,6 +17,7 @@
 - FAT12/16 文件读写、`MCB` 内存管理、`EXEC` 程序加载执行
 - 20 个文件句柄，标准输入 / 输出 / 错误设备
 - 命令解释器支持 `ECHO`、`DIR`、`COPY`、`TYPE` 等内建命令与外部 `.COM` 程序
+- 随盘附带 55 个外部 `.COM` 程序（工具 / 图形 / 游戏 / 声音），可直接在 shell 中运行
 
 ## 构建
 
@@ -63,8 +64,24 @@ LPY-DOS/
 │   └── memory.asm  # MCB 内存管理
 ├── shell/          # 命令解释器
 │   └── shell.asm
+├── programs/       # 外部 .COM 程序（55 个）与公共库
+│   ├── inc/        # 宏与子过程库
+│   └── *.asm       # 各类工具、图形、游戏程序
 └── build.ps1       # 构建脚本
 ```
+
+## 外部程序
+
+`build.ps1` 会编译 `programs/` 下所有源文件并打包进 `LPY-DOS.img`，在 shell 直接输入文件名即可运行（省略 `.COM`）：
+
+- 通用工具：`hello`、`args`、`banner`、`spin`、`countd`、`about`、`ascii`、`chart`
+- 数学与数值：`calc`、`factor`、`prime`、`fib`、`gcd`、`lcm`、`rand`、`dice`、`multab`
+- 进制转换：`dec`、`hex`、`oct`、`bin`、`bits`
+- 字符串处理：`revstr`、`upper`、`lower`、`palin`、`wcount`、`caesar`、`repr`
+- 文件工具：`mkfile`、`readf`、`copyf`、`renf`、`delf`、`fsize`、`dump`、`search`
+- 屏幕与图形：`scr`、`box`、`grid`、`diag`、`colors`、`bars`、`matrix`、`rain`、`rainbow`、`bounce`
+- 小游戏：`snake`、`pong`、`guess`、`relay`、`react`
+- 声音：`beep`、`tune`、`morse`
 
 ## License
 
