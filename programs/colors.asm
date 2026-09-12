@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  colors.com — 用 BIOS INT 10h 显示 16 色块（前景属性 0..15）
 ; ============================================================================
 start:
+    call check_about
     mov word [idx], 0
 .next:
     mov ax, [idx]
@@ -53,4 +54,8 @@ start:
 s_msg db '16 attribute colors.$'
 idx   dw 0
 
+logo_attr db 0Bh
+logo_data db ' ###  ##  #     ##  ###   ###$','#    #  # #    #  # #  # #   $','#    #  # #    #  # ###   ## $','#    #  # #    #  # # #     #$',' ###   ##  ####  ##  #  # ###$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

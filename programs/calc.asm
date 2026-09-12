@@ -127,4 +127,8 @@ va    dw 0
 vb    dw 0
 opch  db 0
 
+logo_attr db 0Dh
+logo_data db ' ###  ##  #     ###$','#    #  # #    #   $','#    #### #    #   $','#    #  # #    #   $',' ###  #  # ####  ###$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

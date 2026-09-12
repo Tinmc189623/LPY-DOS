@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  bounce.com — 一个字符球在屏内自动弹跳，任意键退出
 ; ============================================================================
 start:
+    call check_about
     ; 清屏
     mov ax, 0600h
     mov bh, 07h
@@ -73,4 +74,8 @@ col   db 0
 dr    db 0
 dc    db 0
 
+logo_attr db 05h
+logo_data db '###   ##  #  # #  #  ### ####$','#  # #  # #  # ## # #    #   $','###  #  # #  # # ## #    ### $','#  # #  # #  # #  # #    #   $','###   ##   ##  #  #  ### ####$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

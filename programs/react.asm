@@ -52,4 +52,13 @@ s_ac   db 'ascii=$'
 chr    db 0
 scan   db 0
 
+logo_attr db 02h
+logo_data db 'RRRR   EEEEE    A     CCCC  TTTTT$'
+          db 'R   R  E      A  A   C        T$'
+          db 'RRRR   EEE     AAAAA  C        T$'
+          db 'R   R  E      A   A   C        T$'
+          db 'R   R  EEEEE  A   A    CCCC    T$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

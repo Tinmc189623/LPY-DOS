@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  relay.com — 反应速度测试：出现 "GO" 后立刻按键，计时滴滴答答
 ; ============================================================================
 start:
+    call check_about
     puts s_wait
     ; 随机延时 18..179 滴答（约 1..10 秒）
     call lfsr
@@ -68,4 +69,13 @@ s_sec   db ' approx. seconds).', 0Dh, 0Ah, '$'
 seed    dw 0
 t0      dw 0
 
+logo_attr db 04h
+logo_data db 'RRRR   EEEEE  L      A     Y   Y$'
+          db 'R   R  E      L     A A    Y   Y$'
+          db 'RRRR   EEE    L     AAAAA   Y Y $'
+          db 'R   R  E      L     A   A    Y  $'
+          db 'R   R  EEEEE  LLLLL A   A    Y  $'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -58,4 +58,13 @@ inbuf db 128
       db 0
       db 128 dup(0)
 
+logo_attr db 2Ah
+logo_data db 'W   W  CCCC   OOO   U   U  N   N  TTTTT$'
+          db 'W   W  C     O   O  U   U  NN  N    T  $'
+          db 'W W W  C     O   O  U   U  N N N    T  $'
+          db 'W W W  C     O   O  U   U  N  NN    T  $'
+          db ' W W    CCCC   OOO    UUU   N   N    T  $'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

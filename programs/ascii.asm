@@ -44,4 +44,8 @@ start:
 
 s_head db 'ASCII 0x00..0x7F:', 0Dh, 0Ah, '$'
 
+logo_attr db 0Fh
+logo_data db ' ##   ###  ###   ## $','#  # #    #      # $','####  ##  #      # $','#  #    # #      # $','#  # ###   ###  ## $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

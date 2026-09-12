@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  box.com — 用 BIOS 光标定位画一个矩形框
 ; ============================================================================
 start:
+    call check_about
     ; 顶边：row 3，col 3..38
     mov dh, 3
     mov dl, 3
@@ -49,4 +50,8 @@ start:
 
 s_msg db 'A box drawn with BIOS cursor moves.$'
 
+logo_attr db 09h
+logo_data db '###   ##  #  #$','#  # #  # #  #$','###  #  #  ## $','#  # #  # #  #$','###   ##  #  #$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

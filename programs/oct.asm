@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  oct.com — 输入十进制数值，输出其八进制表示
 ; ============================================================================
 start:
+    call check_about
     mov dx, s_in
     call read_num
     puts s_out
@@ -38,4 +39,12 @@ print_oct16:
 s_in  db 'Enter decimal: $'
 s_out db 'Octal: $'
 
+logo_attr db 02h
+logo_data db 'OO   CC  TTTT$'
+          db 'O  O C    T  $'
+          db 'O  O C    T  $'
+          db 'O  O C    T  $'
+          db 'OO   CC   T  $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

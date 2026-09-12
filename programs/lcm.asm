@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  lcm.com — 求两个数的最小公倍数：LCM = A / GCD * B
 ; ============================================================================
 start:
+    call check_about
     mov dx, s_a
     call read_num           ; A
     mov [va], ax
@@ -42,4 +43,12 @@ va    dw 0
 vb    dw 0
 gcdv  dw 0
 
+logo_attr db 0Bh
+logo_data db 'L    CC  M  M$'
+          db 'L    C   MM M$'
+          db 'L    C   M M M$'
+          db 'L    C   M  M$'
+          db 'LLLL CC  M  M$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

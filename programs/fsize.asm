@@ -56,4 +56,13 @@ fname   db 64 dup(0)
 lo      dw 0
 hi      dw 0
 
+logo_attr db 0x4E
+logo_data db '#####  #### ##### ##### #####$'
+db '#     #       #      #   #    $'
+db '####   ###     #     #   #### $'
+db '#        #   #    #    #    $'
+db '#     ####  ##### ##### #####$'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

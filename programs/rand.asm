@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  rand.com — 基于 16 位 Galois LFSR 的伪随机数生成器，输出 N 个
 ; ============================================================================
 start:
+    call check_about
     mov dx, s_in
     call read_num           ; 个数 -> AX
     mov [count], ax
@@ -53,4 +54,12 @@ s_out  db 'Random: $'
 count  dw 0
 seed   dw 0
 
+logo_attr db 07h
+logo_data db 'RRR  A   N  N DDD $'
+          db 'R  R A A  NN N D  D$'
+          db 'RRR  AAAA N N N D  D$'
+          db 'R R  A  A N  N D  D$'
+          db 'R  R A  A N  N DDD $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

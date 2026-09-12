@@ -106,4 +106,13 @@ dlen    dw 0
 cnt     dw 0
 i       dw 0
 
+logo_attr db 0Bh
+logo_data db ' SSSS  EEEEE  A     RRRR   CCCC  H   H$'
+          db 'S      E     A A   R   R  C     H   H$'
+          db ' SSS   EEE   AAAAA  RRRR   C     HHHHH$'
+          db '    S  E     A   A  R  R   C     H   H$'
+          db 'SSSS   EEEEE A   A  R   R   CCCC  H   H$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

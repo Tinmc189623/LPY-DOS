@@ -1,35 +1,69 @@
 ; ============================================================================
 ;  api.asm — INT 21h 系统调用分发与系统服务
-;  对标 MS-DOS 的 DOS 功能调用接口
+;  INT 21h 系统调用接口
 ; ============================================================================
 
-; 最大支持的功能号（AH=62）
-INT21_MAX       equ 62h
+; 最大支持的功能号（AH=7F，其中 70h..7Ah 为图形服务）
+INT21_MAX       equ 7Fh
+
+; ----------------------------------------------------------------------------
+;  save_ax：INT 21h 调用者完整 AX（AH=功能号, AL=子功能）暂存
+;  caller_cx：调用者 CX 暂存（.exit 用 CX 合并 CF 标志后按需恢复）
+;  调试环形日志：int21_dbg 记录最近 512 次调用的 AH 值（仅诊断用）
+; ----------------------------------------------------------------------------
+save_ax         dw 0
+caller_cx       dw 0
+int21_dbg_pos   dw 0
+int21_dbg       rb 512
 
 ; ----------------------------------------------------------------------------
 ;  int21_handler：INT 21h 分发入口
 ;  进入时：DS=调用者数据段，其余寄存器为调用参数
 ;  出口：按 API 约定返回，CF=1 表示错误（AX 为错误码）
+;  说明：入口先把调用者 AX/DS/ES 压栈，设 DS=KERNEL_SEG 后再写内核变量，
+;        避免在调用者段下把变量写错位置。
 ; ----------------------------------------------------------------------------
 int21_handler:
         pushf
         cli
-        push es
-        push ds
-        mov [caller_ds], ds      ; 保存调用者段供参数寻址
-        mov [caller_es], es
+        push es                 ; 保存调用者 ES
+        push ds                 ; 保存调用者 DS
+        push ax                 ; 保存调用者 AX（功能号在 AH，置于栈顶便于弹出）
         mov ax, KERNEL_SEG
         mov ds, ax
         mov es, ax
+        ; 栈（bp=sp）：[bp]=bp,[bp+2]=调用者AX,[bp+4]=调用者DS,[bp+6]=调用者ES...
+        push bp
+        mov bp, sp
+        mov ax, [bp+2]          ; 调用者 AX
+        mov [save_ax], ax       ; 保存完整 AX（AH=功能号, AL=子功能）
+        mov ax, [bp+4]          ; 调用者 DS
+        mov [caller_ds], ax
+        mov ax, [bp+6]          ; 调用者 ES
+        mov [caller_es], ax
+        mov ax, cx              ; 暂存调用者 CX（此刻 CX 尚未被改动）
+        mov [caller_cx], ax
+        pop bp
+        pop ax                  ; 弹出调用者 AX（栈顶）
+        ; 栈：[ds][es][my_pushf][IP][CS][FLAGS]
         ; 仅保留 bx,si,di,bp，ax/cx/dx 供返回
         push bx si di bp
-        ; 分发
-        mov al, ah               ; 功能号
+        ; 调试：把本次功能号记入环形日志（bx/ax 已保存，可自由使用）
+        mov bx, [int21_dbg_pos]
+        mov ax, [save_ax]
+        mov [int21_dbg+bx], ah
+        inc bx
+        and bx, 01FFh
+        mov [int21_dbg_pos], bx
+        ; 分发：用 AH 计算表索引，被调函数仍收到完整调用者 AX
+        mov ax, [save_ax]
+        mov al, ah              ; 功能号
         xor ah, ah
         cmp ax, INT21_MAX
         ja .unsupported
         shl ax, 1
         mov si, ax
+        mov ax, [save_ax]       ; 恢复调用者 AX（AH=功能号, AL=子功能）
         call word [int21_table+si]
         ; 检查终止请求
         cmp byte [term_request], 0
@@ -55,6 +89,17 @@ int21_handler:
         and cx, 0FFFEh
         or cx, ax
         mov [bp+6], cx
+        ; CX 刚被用作标志合并暂存；除以 CX 返回值的功能外一律恢复调用者 CX，
+        ; 否则调用方 putch 后的 loop 会拿到 FLAGS 值当计数、弹飞整个栈
+        mov ax, [save_ax]
+        cmp ah, 2Ah             ; 取系统日期：CX=年
+        je .keep_cx
+        cmp ah, 2Ch             ; 取系统时间：CX=时分
+        je .keep_cx
+        cmp ah, 30h             ; 取版本号：CX=0
+        je .keep_cx
+        mov cx, [caller_cx]
+.keep_cx:
         pop ax                   ; 丢弃 my pushf
         iret
 
@@ -70,7 +115,7 @@ int21_handler:
         jmp do_terminate
 
 ; ----------------------------------------------------------------------------
-;  INT 21h 功能跳转表（0x00 ~ 0x62）
+;  INT 21h 功能跳转表（0x00 ~ 0x7F）
 ; ----------------------------------------------------------------------------
 int21_table:
         dw fn_terminate         ; 00 终止程序
@@ -145,9 +190,9 @@ int21_table:
         dw fn_unknown           ; 45
         dw fn_unknown           ; 46
         dw fn_get_cwd           ; 47 取当前目录
-        dw fn_unknown           ; 48
-        dw fn_unknown           ; 49
-        dw fn_unknown           ; 4A
+        dw fn_alloc             ; 48 分配内存块
+        dw fn_free              ; 49 释放内存块
+        dw fn_resize            ; 4A 调整内存块大小
         dw fn_exec              ; 4B 执行程序
         dw fn_exit              ; 4C 退出进程
         dw fn_unknown           ; 4D
@@ -172,6 +217,35 @@ int21_table:
         dw fn_unknown           ; 60
         dw fn_unknown           ; 61
         dw fn_get_psp           ; 62 取 PSP 段
+        dw fn_unknown           ; 63
+        dw fn_unknown           ; 64
+        dw fn_unknown           ; 65
+        dw fn_unknown           ; 66
+        dw fn_unknown           ; 67
+        dw fn_unknown           ; 68
+        dw fn_unknown           ; 69
+        dw fn_unknown           ; 6A
+        dw fn_unknown           ; 6B
+        dw fn_unknown           ; 6C
+        dw fn_unknown           ; 6D
+        dw fn_unknown           ; 6E
+        dw fn_unknown           ; 6F
+        dw fn_gfx_init          ; 70 进入图形模式
+        dw fn_gfx_exit          ; 71 恢复文本模式
+        dw fn_gfx_pixel         ; 72 画点
+        dw fn_gfx_hline         ; 73 水平线
+        dw fn_gfx_vline         ; 74 垂直线
+        dw fn_gfx_fillrect      ; 75 填充矩形
+        dw fn_gfx_frame         ; 76 矩形边框
+        dw fn_gfx_circle        ; 77 画圆
+        dw fn_gfx_fillcircle    ; 78 填充圆
+        dw fn_gfx_pal           ; 79 设置调色板
+        dw fn_gfx_text          ; 7A 图形文本
+        dw fn_unknown           ; 7B
+        dw fn_unknown           ; 7C
+        dw fn_unknown           ; 7D
+        dw fn_unknown           ; 7E
+        dw fn_unknown           ; 7F
 
 ; ============================================================================
 ;  未实现功能处理
@@ -188,15 +262,18 @@ fn_unknown:
 ; ----------------------------------------------------------------------------
 ;  put_char：向屏幕输出一个字符
 ;  入口：AL = 字符
+;  说明：QEMU 的 VGABIOS teletype（AH=0Eh）不遵守 BIOS 约定，实测会破坏
+;        CX/SI/DX。调用方（print_dec16 的 loop、print_str 的 lodsb 循环）
+;        依赖这些寄存器跨调用存活，故在此统一保存全部现场。
 ; ----------------------------------------------------------------------------
 put_char:
-        push ax
-        push bx
+        push ax bx cx dx si di bp
+        push ds es
         mov ah, 0Eh
-        mov bx, 7
+        mov bx, 0007h
         int 10h
-        pop bx
-        pop ax
+        pop es ds
+        pop bp di si dx cx bx ax
         ret
 
 ; ----------------------------------------------------------------------------
@@ -276,7 +353,9 @@ read_line:
         call put_char
         jmp .loop
 .ctrlc:
-        mov al, 0Eh             ; 打印 ^C
+        mov al, '^'             ; 打印 ^C
+        call put_char
+        mov al, 'C'
         call put_char
         mov byte [line_len], 0
         mov si, line_data
@@ -478,8 +557,8 @@ fn_get_date:
         push ax                  ; 暂存星期
         mov al, ch
         call bcd_to_bin          ; AL = 世纪
-        mov bx, 100
-        mul bx                   ; AX = 世纪 * 100
+        mov bl, 100
+        mul bl                   ; AX = 世纪 * 100（8 位乘法不破坏 DX，月/日尚在 DH/DL）
         mov si, ax
         mov al, cl
         call bcd_to_bin          ; AL = 年

@@ -1,11 +1,11 @@
 ; ============================================================================
 ;  LPY-DOS 引导扇区 (FAT12 / 1.44MB 软盘)
-;  对标 MS-DOS 引导程序：解析根目录、按 FAT12 链加载 LPYOS.SYS 内核
+;  引导流程：解析根目录、按 FAT12 链加载 LPYOS.SYS 内核
 ;  内核加载地址：0x1000:0x0000（内核大小须小于 32KB）
 ;
 ;  编译：fasm boot.asm boot.bin
 ;
-;  Copyright (C) 2026 Nexlyh
+;  Copyright (C) 2026 Nexsteaduser
 ;  This program is free software: you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
 ;  the Free Software Foundation, either version 3 of the License, or
@@ -138,6 +138,7 @@ print:
 ;  read_sectors：从磁盘读取连续扇区
 ;  入口：AX = 起始 LBA，CX = 扇区数，ES:BX = 目标缓冲区
 ;  出口：失败时打印错误信息并挂起
+;  说明：失败时复位驱动器并重试（retry_cnt 次），仍失败打印错误信息后挂起
 ; ----------------------------------------------------------------------------
 read_sectors:
         pusha
@@ -145,12 +146,15 @@ read_sectors:
         push ax
         push cx
         push bx
-
+        mov [sec_lba], ax           ; 暂存当前 LBA（重试时重新取用）
+        mov byte [retry_cnt], 4     ; 最多重试 4 次
+.retry:
         ; LBA 转 CHS：
         ;   扇区号 = LBA % 每磁道扇区数 + 1
         ;   磁道号 = LBA / (每磁道扇区数 * 磁头数)
         ;   磁头号 = (LBA / 每磁道扇区数) % 磁头数
         ; 注意：BX 必须保留缓冲区偏移，扇区号用内存变量暂存
+        mov ax, [sec_lba]
         xor dx, dx
         mov cx, 18                  ; 每磁道扇区数
         div cx                      ; ax = LBA/18, dx = LBA%18
@@ -166,8 +170,15 @@ read_sectors:
         mov al, 1                   ; 读 1 扇区
         mov ah, 02h
         int 13h
-        jc .error
-
+        jnc .ok
+        mov ah, 0
+        int 13h                     ; 复位磁盘后重试
+        dec byte [retry_cnt]
+        jnz .retry
+        mov si, msg_disk_error
+        call print
+        jmp hang
+.ok:
         pop bx
         pop cx
         pop ax
@@ -176,15 +187,6 @@ read_sectors:
         loop .loop
         popa
         ret
-
-.error:
-        pop bx
-        pop cx
-        pop ax
-        popa
-        mov si, msg_disk_error
-        call print
-        jmp hang
 
 ; ----------------------------------------------------------------------------
 ;  next_cluster：FAT12 中获取下一簇号
@@ -200,7 +202,7 @@ next_cluster:
         push di
         push es
 
-        mov bx, ax                  ; bx = 簇号（read_sectors 经 pusha/popa 不会改动）
+        mov bp, ax                  ; bp = 簇号（read_sectors 的 pusha/popa 会保留 BP）
         mov si, ax
         shr si, 1
         add si, ax                  ; si = 簇号 * 1.5（FAT 内字节偏移）
@@ -218,7 +220,7 @@ next_cluster:
         call read_sectors
         pop di                      ; 恢复扇区内偏移
         mov ax, [es:di]             ; 读取 16 位 FAT 项
-        test bx, 1                  ; 判断簇号奇偶
+        test bp, 1                  ; 判断簇号奇偶（BP = 原始簇号，被 pusha/popa 保留）
         jnz .odd
         and ax, 0FFFh               ; 偶数簇：取低 12 位
         jmp .done
@@ -239,6 +241,8 @@ next_cluster:
 boot_drive      db 0                ; 启动驱动器号
 first_cluster   dw 0                ; 内核起始簇号
 sec_num         db 0                ; CHS 转换临时扇区号
+sec_lba         dw 0                ; read_sectors 当前 LBA（重试时重新取用）
+retry_cnt       db 0                ; 读盘重试计数
 filename        db 'LPYOS   SYS'   ; 内核文件名（11 字节，8.3 格式）
 msg_no_kernel   db 0Dh,0Ah,'LPY-DOS: kernel LPYOS.SYS not found.',0Dh,0Ah,0
 msg_disk_error  db 0Dh,0Ah,'LPY-DOS: disk read error.',0Dh,0Ah,0

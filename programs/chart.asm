@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  chart.com — 打印可打印 ASCII 字符表（32..126，每 16 个换行）
 ; ============================================================================
 start:
+    call check_about
     puts s_head
     mov si, 32
 .loop:
@@ -32,4 +33,8 @@ start:
 
 s_head db 'ASCII printable:', 0Dh, 0Ah, '$'
 
+logo_attr db 02h
+logo_data db ' ### #  #  ##  ###  ####$','#    #  # #  # #  #   # $','#    #### #### ###    # $','#    #  # #  # # #    # $',' ###  #  # #  # #  #   # $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

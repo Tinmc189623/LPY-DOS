@@ -77,4 +77,8 @@ inbuf   db 128
         db 0
         db 128 dup(0)
 
+logo_attr db 0Ch
+logo_data db ' ###  ##  ####  ###   ##  ### $','#    #  # #    #    #  # #  #$','#    #### ###   ##  #### ### $','#    #  # #       # #  # # # $',' ###  #  # #### ###  #  # #  #$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

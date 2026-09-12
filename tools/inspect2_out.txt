@@ -1,0 +1,13 @@
+ver => 7
+hello => 2
+calc => 1
+factor => 1
+World => 0
+COMMAND => 0
+Bad => 0
+not found => 0
+GPL => 0
+free software => 0
+1.0.0 => 0
+Syntax => 0
+usage => 0

@@ -7,6 +7,7 @@ include 'inc/macro.asm'
 ;  点 '.' 短音，划 '-' 长音
 ; ============================================================================
 start:
+    call check_about
     puts s_prompt
     lea dx, [inbuf]
     mov ah, 0Ah
@@ -129,6 +130,14 @@ mor_tab db '.','-',0,0       ; A
         db '.','-','-',0     ; W
         db '-','.','.','-'   ; X
         db '-','.','-','-'   ; Y
-        db '-','-','.','.'   ; Z
+        db '-','.','.','.'   ; Z
+
+logo_attr db 09h
+logo_data db 'M  M OO  RRR  SS  EEEE$'
+          db 'MM M O  O R  R S   E   $'
+          db 'M M M O  O RRR   SS  EEE $'
+          db 'M  M O  O R R     S E   $'
+          db 'M  M OO  R  R SS   EEEE$', 0
 
 include 'inc/std.asm'
+include 'inc/logo.asm'

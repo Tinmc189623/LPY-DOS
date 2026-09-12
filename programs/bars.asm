@@ -50,4 +50,8 @@ bi    dw 0
 h     dw 0
 col   dw 0
 
+logo_attr db 03h
+logo_data db '###   ##  ###   ###$','#  # #  # #  # #   $','###  #### ###   ## $','#  # #  # # #     #$','###  #  # #  # ### $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

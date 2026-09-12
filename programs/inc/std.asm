@@ -5,7 +5,7 @@
 ;  用法：在程序末尾 include 'inc/std.asm'，即可 call 下列子过程并使用宏。
 ;  本文件不单独编译，依赖调用方提供 use16/org 与 CS=DS。
 ;
-;  Copyright (C) 2026 Nexlyh
+;  Copyright (C) 2026 Nexsteaduser
 ; ============================================================================
 
 ; 宏（puts / putch）在引用的 'inc/macro.asm' 中定义，

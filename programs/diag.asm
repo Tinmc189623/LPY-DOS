@@ -25,4 +25,13 @@ start:
 
 s_msg db 'Diagonal drawn.$'
 
+logo_attr db 0x0E
+logo_data db '####  #####  ###   ####$'
+db '#   #   #   #   # #    $'
+db '#   #   #   ##### #  ##$'
+db '#   #   #   #   # #   #$'
+db '####  ##### #   #  ####$'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

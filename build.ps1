@@ -1,22 +1,45 @@
 # ============================================================================
-#  LPY-DOS 构建脚本（PowerShell 7+）
+#  LPY-DOS 构建脚本（兼容 Windows PowerShell 5.1 与 PowerShell 7+）
 #  1. 用 FASM 编译 boot / kernel / shell
 #  2. 编译 programs/ 下全部外部 .COM 程序
 #  3. 生成 FAT12 1.44MB 软盘镜像 LPY-DOS.img（内核 + shell + 所有程序）
 #  4. （可选）启动 QEMU 运行
 #
-#  用法：pwsh build.ps1 [run]
+#  用法：
+#    PowerShell 5.1 : powershell -ExecutionPolicy Bypass -File build.ps1 [run]
+#    PowerShell 7+  : pwsh -File build.ps1 [run]
 #    run 参数表示构建后启动 QEMU
 #
-#  Copyright (C) 2026 Nexlyh
+#  工具定位顺序（FASM）：
+#    环境变量 LPYDOS_FASM -> PATH 中的 fasm -> 常见安装路径
+#
+#  Copyright (C) 2026 Nexsteaduser
 #  This program is free software under the GNU GPL v3 or later.
 # ============================================================================
 
 $ErrorActionPreference = 'Stop'
 
-# 工具路径
-$Fasm = 'D:\fasm\FASM.EXE'
-$Qemu = 'qemu-system-i386.exe'
+function Find-Executable([string]$cmd, [string[]]$candidates) {
+    $hit = Get-Command $cmd -ErrorAction SilentlyContinue
+    if ($hit) { return $hit.Source }
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return $c }
+    }
+    return $null
+}
+
+# 自动定位 FASM：环境变量 -> PATH -> 常见安装路径
+$Fasm = $null
+if ($env:LPYDOS_FASM -and (Test-Path $env:LPYDOS_FASM)) { $Fasm = $env:LPYDOS_FASM }
+if (-not $Fasm) { $Fasm = Find-Executable 'fasm' @('D:\fasm\FASM.EXE','C:\fasm\FASM.EXE') }
+if (-not $Fasm) {
+    $host.UI.WriteErrorLine('未找到 FASM 汇编器。')
+    $host.UI.WriteErrorLine('请从 https://flatassembler.net/ 下载安装，或用环境变量 LPYDOS_FASM 指定其路径后重试。')
+    exit 1
+}
+
+# 自动定位 QEMU（可选）
+$Qemu = Find-Executable 'qemu-system-i386' @('C:\Program Files\qemu\qemu-system-i386.exe','D:\qemu\qemu-system-i386.exe')
 
 # 镜像几何（与 boot.asm BPB 一致）
 $BytsPerSec  = 512
@@ -175,10 +198,10 @@ Write-Host "  共写入 $($items.Count) 个文件，占用 $($nextClu - 2) 簇"
 # ---- 3. 启动 QEMU ----
 if ($args -contains 'run') {
     Write-Host '== 启动 QEMU ============================================'
-    if (Get-Command $Qemu -ErrorAction SilentlyContinue) {
+    if ($Qemu) {
         & $Qemu -fda $imgPath -boot a -display gtk
     } else {
-        Write-Host "未找到 $Qemu，请安装 QEMU 后手动运行："
-        Write-Host "  $Qemu -fda $imgPath -boot a"
+        Write-Host '未找到 QEMU，请安装 QEMU 后手动运行：'
+        Write-Host "  qemu-system-i386 -fda $imgPath -boot a"
     }
 }

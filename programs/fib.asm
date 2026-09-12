@@ -38,4 +38,13 @@ s_in   db 'How many terms? $'
 s_out  db 'Fibonacci: $'
 count  dw 0
 
+logo_attr db 0x3E
+logo_data db '##### ##### #### $'
+db '#       #   #   #$'
+db '####    #   #### $'
+db '#       #   #   #$'
+db '#     ##### #### $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

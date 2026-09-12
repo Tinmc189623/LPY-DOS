@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  rainbow.com — 用 BIOS INT 10h 逐字符写彩色 "RAINBOW" 横幅
 ; ============================================================================
 start:
+    call check_about
     mov si, msg
     mov di, 8               ; 起始列
     mov byte [col], 1       ; 起始属性色
@@ -42,4 +43,12 @@ msg   db 'RAINBOW', 0
 s_tip db 'Press a key.$'
 col   db 1
 
+logo_attr db 0Dh
+logo_data db 'RRR  A   IIII N  N BBB   OO  W  W$'
+          db 'R  R A A   I   NN N B  B O  O W  W$'
+          db 'RRR  AAAA  I   N N N BBB  O  O W W W$'
+          db 'R R  A  A  I   N  N B  B O  O WW WW$'
+          db 'R  R A  A IIII N  N BBB   OO  W  W$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

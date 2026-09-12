@@ -8,6 +8,7 @@ include 'inc/macro.asm'
 N equ 24
 
 start:
+    call check_about
     mov ah, 0
     int 1Ah
     mov byte [seed], dl
@@ -123,4 +124,12 @@ px   db N dup(0)
 py   db N dup(0)
 pc   db N dup(0)
 
+logo_attr db 06h
+logo_data db 'RRR  A   IIII N  N$'
+          db 'R  R A A   I   NN N$'
+          db 'RRR  AAAA  I   N N N$'
+          db 'R R  A  A  I   N  N$'
+          db 'R  R A  A IIII N  N$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  lower.com — 输入一行字符串，转为小写输出
 ; ============================================================================
 start:
+    call check_about
     puts s_in
     call readstr
     mov cl, [inbuf+1]
@@ -41,4 +42,12 @@ inbuf  db 128
        db 0
        db 128 dup(0)
 
+logo_attr db 0Ch
+logo_data db 'L    OO  W  W EEEE RRR $'
+          db 'L    O  O W  W E    R  R$'
+          db 'L    O  O W W W EEE  RRR $'
+          db 'L    O  O WW WW E    R R $'
+          db 'LLLL OO  W  W EEEE R  R$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

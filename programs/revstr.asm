@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  revstr.com — 输入一行字符串，反转输出
 ; ============================================================================
 start:
+    call check_about
     puts s_in
     call readstr            ; 读取一行到 inbuf
     mov cl, [inbuf+1]
@@ -38,4 +39,13 @@ inbuf  db 128
        db 0
        db 128 dup(0)
 
+logo_attr db 09h
+logo_data db 'RRRR   EEEEE  V   V   SSSS  TTTTT  RRRR$'
+          db 'R   R  E      V   V  S      T     R   R$'
+          db 'RRRR   EEE    V   V   SSS   T     RRRR$'
+          db 'R   R  E       V V      S   T     R  R$'
+          db 'R   R  EEEEE    V   SSSS    T     R   R$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

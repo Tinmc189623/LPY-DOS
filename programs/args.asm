@@ -44,4 +44,8 @@ start:
 
 s_none  db 'No arguments given.$'
 
+logo_attr db 0Ah
+logo_data db ' ##  ###   ###  ###$','#  # #  # #    #   $','#### ###  # ##  ## $','#  # # #  #  #    #$','#  # #  #  ### ### $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -8,6 +8,7 @@ include 'inc/macro.asm'
 MAXLEN equ 200
 
 start:
+    call check_about
     ; 清屏
     mov ax, 0600h
     mov bh, 07h
@@ -232,4 +233,13 @@ sx    db 10, 9, 8
 sy    db 12, 12, 12
       db MAXLEN dup(0)
 
+logo_attr db 0Ch
+logo_data db ' SSSS  N   N  A     K   K  EEEEE$'
+          db 'S      NN  N  A A   K  K   E    $'
+          db ' SSS   N N N  AAAAA  KKK    EEE $'
+          db '    S  N  NN  A   A  K  K   E    $'
+          db 'SSSS   N   N  A   A  K   K  EEEEE$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -52,4 +52,13 @@ s_msg db 'Playing a scale...', 0Dh, 0Ah, '$'
 ; 频率(Hz), 时长(滴答), ..., 0 结尾
 song dw 262,6, 294,6, 330,6, 349,6, 392,6, 440,6, 494,6, 523,12, 0
 
+logo_attr db 0Eh
+logo_data db 'TTTTT  U   U  N   N  EEEEE$'
+          db '  T    U   U  NN  N  E    $'
+          db '  T    U   U  N N N  EEE  $'
+          db '  T    U   U  N  NN  E    $'
+          db '  T     UUU   N   N  EEEEE$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

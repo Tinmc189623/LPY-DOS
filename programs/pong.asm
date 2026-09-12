@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  pong.com — 单杆反弹球：W/S 移动左挡板，球撞板得分，漏球重置
 ; ============================================================================
 start:
+    call check_about
     mov ax, 0600h
     mov bh, 07h
     xor cx, cx
@@ -159,4 +160,12 @@ dr    db 0
 dc    db 0
 score dw 0
 
+logo_attr db 04h
+logo_data db 'PPP  OO  N  N  GG $'
+          db 'P  P O  O NN N G   $'
+          db 'PPP  O  O N N N G GG$'
+          db 'P    O  O N  N G  G$'
+          db 'P    OO  N  N  GG $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

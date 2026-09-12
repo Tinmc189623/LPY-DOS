@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  bits.com — 列出某个整数的每一位及对应权重
 ; ============================================================================
 start:
+    call check_about
     mov dx, s_in
     call read_num
     mov [val], ax
@@ -55,4 +56,8 @@ s_bit db 'bit$'
 s_w   db '  weight=$'
 val   dw 0
 
+logo_attr db 06h
+logo_data db '###   ##  ####  ###$','#  #   #    #  #   $','###    #    #   ## $','#  #   #    #     #$','###   ##    #  ### $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

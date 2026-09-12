@@ -98,4 +98,13 @@ b16     db 16 dup(0)
 got     dw 0
 off     dw 0
 
+logo_attr db 0x1E
+logo_data db '####  #   # #   # #### $'
+db '#   # #   # ## ## #   #$'
+db '#   # #   # # # # #### $'
+db '#   # #   # #   # #    $'
+db '####   ###  #   # #    $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

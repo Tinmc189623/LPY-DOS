@@ -31,4 +31,13 @@ s_ok    db 'Deleted.', 0Dh, 0Ah, '$'
 s_err   db 'Cannot delete file.', 0Dh, 0Ah, '$'
 fname   db 64 dup(0)
 
+logo_attr db 0x0D
+logo_data db '####  ##### #     #####$'
+db '#   # #     #     #    $'
+db '#   # ####  #     #### $'
+db '#   # #     #     #    $'
+db '####  ##### ##### #    $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

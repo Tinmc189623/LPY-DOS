@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  palin.com — 判断输入字符串是否为回文（区分大小写）
 ; ============================================================================
 start:
+    call check_about
     puts s_in
     call readstr
     mov cl, [inbuf+1]
@@ -45,4 +46,12 @@ inbuf  db 128
        db 0
        db 128 dup(0)
 
+logo_attr db 03h
+logo_data db 'PPP  A   L    IIII N  N$'
+          db 'P  P A A  L     I   NN N$'
+          db 'PPP  AAAA L     I   N N N$'
+          db 'P    A  A L     I   N  N$'
+          db 'P    A  A LLLL IIII N  N$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

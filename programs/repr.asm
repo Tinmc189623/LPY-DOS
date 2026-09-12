@@ -46,4 +46,13 @@ inbuf  db 128
        db 0
        db 128 dup(0)
 
+logo_attr db 06h
+logo_data db 'RRRR   EEEEE  PPPP   RRRR$'
+          db 'R   R  E      P   P  R   R$'
+          db 'RRRR   EEE    PPPP   RRRR$'
+          db 'R   R  E      P      R  R$'
+          db 'R   R  EEEEE  P      R   R$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

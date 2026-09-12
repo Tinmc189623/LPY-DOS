@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  matrix.com — 数字雨：20 列字符自上而下漂落，按键退出
 ; ============================================================================
 start:
+    call check_about
     ; 用时钟初始化随机种子
     mov ah, 0
     int 1Ah
@@ -112,4 +113,12 @@ col  dw 0
 cy   db 20 dup(0)
 cch  db 20 dup(0)
 
+logo_attr db 0Eh
+logo_data db 'M  M A   TTTT RRR  IIII X  X$'
+          db 'MM M A A  T   R  R  I   XX $'
+          db 'M M M AAAA T   RRR   I   X  $'
+          db 'M  M A  A T   R R    I   XX $'
+          db 'M  M A  A T   R  R IIII X  X$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

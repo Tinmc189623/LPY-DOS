@@ -1,11 +1,11 @@
 ; ============================================================================
 ;  LPY-DOS 命令解释器 LPYCMD.COM
-;  对标 MS-DOS 的 COMMAND.COM：内建命令 + 外部 .COM 程序执行
+;  命令解释器：内建命令 + 外部 .COM 程序执行
 ;
 ;  编译：fasm shell.asm LPYCMD.COM
 ;  运行：由内核 reshell 加载，DS=ES=SS=PSP 段，入口 org 100h
 ;
-;  Copyright (C) 2026 Nexlyh
+;  Copyright (C) 2026 Nexsteaduser
 ;  This program is free software: you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
 ;  the Free Software Foundation, either version 3 of the License, or
@@ -32,13 +32,15 @@ rbuf            db MAXLINE      ; AH=0A 缓冲：最大长度
 rbuf_len        db 0            ; 实际长度
 rbuf_data       db MAXLINE dup(0)
 cmdline         db MAXLINE dup(0) ; 命令行（0 结尾）
-cmd_name        db 16 dup(0)    ; 命令名（大写）
+cmd_name        db MAXLINE dup(0)    ; 命令名（大写）
 arg1            db MAXLINE dup(0)
 arg2            db MAXLINE dup(0)
 curpath         db 80 dup(0)    ; 当前目录串（AH=47）
 search_mode     db MAXLINE dup(0) ; DIR 搜索模式
 exec_path       db MAXLINE dup(0) ; 外部命令路径
 copy_buf        db BUF512 dup(0)  ; COPY/TYPE 传输缓冲
+exec_tail       db MAXLINE dup(0) ; EXEC 命令行尾部（首字节=长度）
+exec_pb         dw 0, exec_tail, 0, 0, 0, 0, 0, 0  ; EXEC 参数块（运行前补命令段）
 
 ; 错误/提示字符串（$ 结尾，供 AH=09）
 s_crlf          db 0Dh,0Ah,'$'
@@ -56,7 +58,7 @@ s_crlf2         db 0Dh,0Ah,0Dh,0Ah,'$'
 s_curdate       db 'Current date is $'
 s_curtime       db 'Current time is $'
 s_ver           db 'LPY-DOS Version 1.0.0',0Dh,0Ah
-                db 'Copyright (C) 2026 Nexlyh',0Dh,0Ah
+                db 'Copyright (C) 2026 Nexsteaduser',0Dh,0Ah
                 db 'GNU GPL v3 or later',0Dh,0Ah,'$'
 
 s_help          db 'LPY-DOS internal commands:',0Dh,0Ah
@@ -148,6 +150,7 @@ cmd_table:
 ;  主循环
 ; ============================================================================
 main:
+        call print_logo
         mov si, s_ver
         call puts
 main_loop:
@@ -264,9 +267,11 @@ dispatch:
         add si, 14
         jmp .find
 .found:
-        mov bx, [si+12]
+        ; DX 不在 dispatch 的保存列表（ax bx si di）中，用它暂存处理函数地址，
+        ; 避免 pop 恢复寄存器时把 bx 中的地址覆盖掉
+        mov dx, [si+12]
         pop di si bx ax
-        call bx                 ; 调用命令处理
+        call dx                 ; 调用命令处理
         jmp dispatch_done
 .external:
         pop di si bx ax
@@ -275,15 +280,15 @@ dispatch_done:
         ret
 
 ; ============================================================================
-;  exec_external：尝试把 arg1 作为 .COM 程序执行（AH=4B AL=0）
+;  exec_external：尝试把 cmd_name 作为 .COM 程序执行（AH=4B AL=0）
 ; ============================================================================
 exec_external:
         push ax bx cx dx si di es
-        ; 无参数则报错
-        cmp byte [arg1], 0
+        ; 无命令名则报错
+        cmp byte [cmd_name], 0
         je .bad
-        ; 拷贝 arg1 到 exec_path，并记录是否含 '.'
-        lea si, [arg1]
+        ; 拷贝 cmd_name（命令字本身）到 exec_path，并记录是否含 '.'
+        lea si, [cmd_name]
         lea di, [exec_path]
         xor bx, bx              ; bx = 0：无扩展名
 .copy:
@@ -312,10 +317,13 @@ exec_external:
         inc di
         mov byte [di], 0
 .do_exec:
-        ; 执行：AH=4B AL=0，DS:DX = 路径
+        ; 构造 EXEC 命令行尾部并设置参数块命令段
+        call build_exec_tail
+        mov [exec_pb+4], ds      ; 命令段 = 本程序段
         push ds
         pop es
         lea dx, [exec_path]
+        mov bx, exec_pb
         mov ax, 4B00h
         int 21h
         jnc .done
@@ -324,6 +332,51 @@ exec_external:
         call puts
 .done:
         pop es di si dx cx bx ax
+        ret
+
+; ----------------------------------------------------------------------------
+;  build_exec_tail：把 arg1/arg2 拼成 " 参数..." 命令尾部放入 exec_tail
+;  出口：exec_tail[0]=长度，数据后以 0Dh 结尾
+; ----------------------------------------------------------------------------
+build_exec_tail:
+        push ax si di bx
+        lea di, [exec_tail+1]    ; 数据起点
+        xor bx, bx               ; 长度
+        lea si, [arg1]
+        cmp byte [si], 0
+        je .arg2
+        mov byte [di], ' '
+        inc di
+        inc bx
+.cp1:
+        mov al, [si]
+        test al, al
+        jz .arg2
+        mov [di], al
+        inc di
+        inc bx
+        inc si
+        jmp .cp1
+.arg2:
+        lea si, [arg2]
+        cmp byte [si], 0
+        je .done
+        mov byte [di], ' '
+        inc di
+        inc bx
+.cp2:
+        mov al, [si]
+        test al, al
+        jz .done
+        mov [di], al
+        inc di
+        inc bx
+        inc si
+        jmp .cp2
+.done:
+        mov byte [exec_tail], bl
+        mov byte [di], 0Dh       ; 回车
+        pop bx di si ax
         ret
 
 ; ============================================================================
@@ -725,6 +778,7 @@ cmd_date:
         mov ah, 2Ah
         int 21h
         ; CX=年, DH=月, DL=日
+        mov bl, dl              ; 暂存“日”（DL 稍后会被分隔符覆盖）
         ; 年
         mov ax, cx
         call print_dec16
@@ -736,7 +790,7 @@ cmd_date:
         mov dl, '-'
         call putch
         ; 日（前导零）
-        mov al, dl
+        mov al, bl
         call print_bin_pad
         mov si, s_crlf
         call puts
@@ -816,6 +870,7 @@ cmd_echo:
 ; ----------------------------------------------------------------------------
 cmd_help:
         push ax si
+        call print_logo
         mov si, s_help
         call puts
         pop si ax
@@ -904,6 +959,72 @@ puts:
         mov ah, 09h
         int 21h
         pop dx ax
+        ret
+
+; ----------------------------------------------------------------------------
+;  print_logo：用 BIOS 绘制彩色 ASCII "LPY-DOS" 横幅
+;  每行以 $ 结尾、末尾 0 结束，水平居中，颜色取 logo_attr；起始行取当前光标
+; ----------------------------------------------------------------------------
+print_logo:
+        push ax bx cx dx si
+        mov ah, 03h
+        xor bh, bh
+        int 10h
+        mov byte [logo_base], dh   ; 起始行
+        mov byte [logo_row], 0
+        lea si, [s_logo]
+.next:
+        cmp byte [si], 0
+        je .fin
+        push si
+        xor cx, cx
+.len:
+        cmp byte [si], '$'
+        je .len_done
+        cmp byte [si], 0        ; 行扫描必须同步识别数据终止符，
+        je .len_done            ; 否则末行缺 $ 时会扫穿整块内存
+        inc cx
+        inc si
+        jmp .len
+.len_done:
+        pop si
+        mov ax, 80
+        sub ax, cx
+        shr ax, 1                    ; 起始列
+        mov byte [logo_col], al
+.write:
+        mov al, [si]
+        cmp al, '$'
+        je .done_row
+        push si
+        mov ah, 02h
+        mov bh, 0
+        mov dh, [logo_base]
+        add dh, [logo_row]
+        mov dl, [logo_col]
+        int 10h                      ; 定位光标
+        mov ah, 09h
+        mov al, [si]
+        mov bl, [logo_attr]
+        mov cx, 1
+        int 10h                      ; 写字符+属性
+        pop si
+        inc byte [logo_col]
+        inc si
+        jmp .write
+.done_row:
+        inc si
+        inc byte [logo_row]
+        jmp .next
+.fin:
+        mov bh, 0
+        mov al, [logo_base]
+        add al, [logo_row]
+        mov dh, al
+        xor dl, dl
+        mov ah, 02h
+        int 10h                      ; 光标移到横幅末行下
+        pop si dx cx bx ax
         ret
 
 ; ----------------------------------------------------------------------------
@@ -1149,3 +1270,17 @@ cmdline_len     dw 0
 dir_count       dw 0
 s_echo_on       db 'ECHO is on',0Dh,0Ah,'$'
 s_echo_off      db 'ECHO is off',0Dh,0Ah,'$'
+
+; LPY-DOS ASCII 横幅（每行以 $ 结尾，末尾 0 结束；末行缺 $ 会让
+; print_logo 的行扫描越过 0 终止符，把整块内存当横幅渲染）
+s_logo          db 'L    PPPP  Y   Y - DDDD   OOO  SSSS','$'
+                db 'L    P   P Y Y - D   D O   O S    ','$'
+                db 'L    PPPP   Y   - D   D O   O  SSS ','$'
+                db 'L    P       Y   - D   D O   O     S','$'
+                db 'L    P     Y Y - D   D O   O S    ','$'
+                db 'LLLLL P      Y   - DDDD   OOO  SSSS','$'
+                db 0
+logo_attr       db 0Bh            ; 横幅颜色：亮青
+logo_base       db 0
+logo_row        db 0
+logo_col        db 0

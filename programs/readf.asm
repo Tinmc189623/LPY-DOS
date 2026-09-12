@@ -7,6 +7,7 @@ include 'inc/macro.asm'
 ;  用法：READF <文件名>
 ; ============================================================================
 start:
+    call check_about
     lea di, [fname]
     mov bl, 1
     call get_cmd_arg
@@ -57,4 +58,13 @@ s_err   db 'Cannot open file.', 0Dh, 0Ah, '$'
 fname   db 64 dup(0)
 buf     db 512 dup(0)
 
+logo_attr db 03h
+logo_data db 'RRRR   EEEEE  DDD     FFFFF$'
+          db 'R   R  E      D   D   F    $'
+          db 'RRRR   EEE    D   D   FFF  $'
+          db 'R   R  E      D   D   F    $'
+          db 'R   R  EEEEE  DDD     F    $'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

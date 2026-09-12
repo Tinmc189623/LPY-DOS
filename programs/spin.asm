@@ -35,4 +35,13 @@ start:
 s_msg       db 'Working$'
 spin_chars  db '|/-\', 0
 
+logo_attr db 0Dh
+logo_data db ' SSSS  PPPP   IIIII  N   N$'
+          db 'S      P   P    I    NN  N$'
+          db ' SSS   PPPP     I    N N N$'
+          db '    S  P        I    N  NN$'
+          db 'SSSS   P      IIIII  N   N$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

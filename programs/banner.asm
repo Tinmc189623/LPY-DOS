@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  banner.com — 用 # 方块字符打印大号 "LPY" 三行横幅
 ; ============================================================================
 start:
+    call check_about
     puts s_tip
     mov si, b0
     call show
@@ -37,4 +38,8 @@ b1    db 'L    P   P   Y Y $'
 b2    db 'L    PPPP     Y  $'
 b3    db 'LLLL PPPP     Y  $'
 
+logo_attr db 0Eh
+logo_data db '###   ##  #  # #  # #### ### $','#  # #  # ## # ## # #    #  #$','###  #### # ## # ## ###  ### $','#  # #  # #  # #  # #    # # $','###  #  # #  # #  # #### #  #$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

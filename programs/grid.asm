@@ -43,4 +43,13 @@ vcols:
 
 s_msg db '3x3 grid drawn.$'
 
+logo_attr db 0x6E
+logo_data db ' ####  ####  ##### #### $'
+db '#     #   #   #   #   #$'
+db '#  ## ####    #   #   #$'
+db '#   # #  #    #   #   #$'
+db ' #### #   # ##### #### $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

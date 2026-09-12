@@ -1,6 +1,6 @@
 ; ============================================================================
 ;  fat.asm — FAT12/FAT16 文件系统与文件 API
-;  对标 MS-DOS 的文件系统服务（INT 21h AH=3C~57）
+;  文件系统服务（INT 21h AH=3C~57）
 ; ============================================================================
 
 ; ----------------------------------------------------------------------------
@@ -86,7 +86,8 @@ fat_get_next:
 .f16_val:
         ; FAT16 直接返回
 .done:
-        pop es di si dx cx bx ax
+        ; 入口只压入 6 个寄存器（bx cx dx si di es），此处只弹 6 个
+        pop es di si dx cx bx
         ret
 
 temp_clupar     dw 0
@@ -346,8 +347,7 @@ fat_iter_dir:
         mov ax, [dir_state_pos]
         inc ax
         mov [dir_state_pos], ax
-        mov di, dir_buf
-        add di, dx
+        add di, dir_buf          ; ES:DI 指向目录项（di 为扇区内偏移）
         clc
         jmp .out
 .end:
@@ -608,7 +608,7 @@ get_component:
 ;  出口：CF=0：填充 find_* 变量；CF=1：未找到
 ; ----------------------------------------------------------------------------
 fat_find_file:
-        push ax bx cx dx si di es
+        push ax bx cx dx si di bp es
         ; 拷贝路径到 path_buf
         mov es, [caller_ds]
         mov si, dx
@@ -648,19 +648,22 @@ fat_find_file:
 .enum:
         call fat_iter_dir
         jc .notfound
+        ; 保存目录项指针到 BP（repe cmpsb 会推进 DI）
+        mov bp, di
         ; 规范化分量名
         lea si, [name_buf]
         lea di, [norm_buf]
         call fat_normalize_name
-        ; 与目录项 11 字节名比较
-        push di
+        ; 与目录项 11 字节名比较（ES 保持 dir_buf 段）
+        mov di, bp
         lea si, [norm_buf]
         mov cx, 11
         repe cmpsb
-        pop di
         je .found_comp
         jmp .enum
 .found_comp:
+        ; 恢复目录项指针（ES:DI）
+        mov di, bp
         ; 记录目录项信息（ES:DI 指向 dir_buf 内目录项）
         mov ax, [es:di+1Ah]
         mov [find_firstclu], ax
@@ -714,7 +717,7 @@ fat_find_file:
 .notfound:
         stc
 .done:
-        pop es di si dx cx bx ax
+        pop es bp di si dx cx bx ax
         ret
 
 ; ----------------------------------------------------------------------------

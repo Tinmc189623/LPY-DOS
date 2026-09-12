@@ -1,0 +1,9 @@
+LEN raw 71543 LEN clean 19412
+A:> count: 1
+A: count: 1
+> count: 351
+banner count: 1
+Bad command: 0
+File not found: 0
+--- A:> @13 ---
+"FAIL: 鏈瓑鍒版彁绀虹 A:>\nWARNING: Image format was not specified for 'G:\\Apps\\OS\\"

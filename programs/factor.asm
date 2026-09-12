@@ -43,4 +43,13 @@ s_in   db 'Enter N: $'
 s_out  db 'Prime factors: $'
 s_zero db '0 has no factors.', 0Dh, 0Ah, '$'
 
+logo_attr db 0x2E
+logo_data db '#####  ###   #### #####  ###  #### $'
+db '#     #   # #       #   #   # #   #$'
+db '####  ##### #       #   #   # #### $'
+db '#     #   # #       #   #   # #  # $'
+db '#     #   #  ####   #    ###  #   #$'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  guess.com — 猜数字游戏：电脑想一个 1..100 的数，玩家猜
 ; ============================================================================
 start:
+    call check_about
     ; 生成秘密数：1..100
     mov ah, 0
     int 1Ah
@@ -70,4 +71,13 @@ seed    dw 0
 secret  db 0
 tries   db 0
 
+logo_attr db 0x9E
+logo_data db ' #### #   # #####  ####  ####$'
+db '#     #   # #     #     #    $'
+db '#  ## #   # ####   ###   ### $'
+db '#   # #   # #         #     #$'
+db ' ####  ###   ##### ####  ####$'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

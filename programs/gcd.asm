@@ -35,4 +35,13 @@ s_out db 'GCD = $'
 va    dw 0
 vb    dw 0
 
+logo_attr db 0x5E
+logo_data db ' ####  #### #### $'
+db '#     #     #   #$'
+db '#  ## #     #   #$'
+db '#   # #     #   #$'
+db ' ####  #### #### $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

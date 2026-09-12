@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  multab.com — 打印 9x9 乘法表（上三角）
 ; ============================================================================
 start:
+    call check_about
     puts s_head
     mov bh, 1               ; 行（被乘数）
 .rows:
@@ -32,4 +33,12 @@ start:
 
 s_head db 'Multiplication table:', 0Dh, 0Ah, '$'
 
+logo_attr db 01h
+logo_data db 'M  M U  U L    TTTT A   BBB $'
+          db 'MM M U  U L     T  A A  B  B$'
+          db 'M M M U  U L     T  AAAA BBB $'
+          db 'M  M U  U L     T  A  A B  B$'
+          db 'M  M UU  LLLL  T   A  A BBB $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

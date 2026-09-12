@@ -21,4 +21,13 @@ start:
 
 s_msg db 'Screen cleared.', 0Dh, 0Ah, '$'
 
+logo_attr db 0Ah
+logo_data db ' SSSS   CCCC  RRRR$'
+          db 'S      C     R   R$'
+          db ' SSS    C     RRRR$'
+          db '    S   C     R  R$'
+          db 'SSSS    CCCC  R   R$'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

@@ -8,6 +8,7 @@ msg_len equ 28
 ;  用法：MKFILE <文件名>
 ; ============================================================================
 start:
+    call check_about
     jmp main
 
 ; 数据需在使用前定义（FASM 不允许前向引用 equ）
@@ -56,4 +57,12 @@ s_ok    db 'File created.', 0Dh, 0Ah, '$'
 s_err   db 'Cannot create file.', 0Dh, 0Ah, '$'
 fname   db 64 dup(0)
 
+logo_attr db 0Fh
+logo_data db 'M  M K  K FFFF IIII L    EEEE$'
+          db 'MM M K K  F     I   L    E   $'
+          db 'M M M KK   FFF   I   L    EEE $'
+          db 'M  M K K  F     I   L    E   $'
+          db 'M  M K  K F   IIII LLLL EEEE$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

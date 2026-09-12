@@ -7,9 +7,10 @@
 ;  lba_to_chs：LBA 转 CHS
 ;  入口：AX = LBA
 ;  出口：CH=磁道, CL=扇区号, DH=磁头
+;  说明：DH 是出口，不再恢复 DX（调用方 read/write_sector_lba 已保存 DX）
 ; ----------------------------------------------------------------------------
 lba_to_chs:
-        push ax bx dx
+        push ax bx
         xor dx, dx
         mov bx, [bpb_sec_per_trk]
         div bx                   ; ax = LBA/每磁道扇区数, dx = LBA%每磁道扇区数
@@ -21,7 +22,8 @@ lba_to_chs:
         mov ch, al
         mov cl, bl
         mov dh, dl
-        pop dx bx ax
+        pop bx
+        pop ax
         ret
 
 ; ----------------------------------------------------------------------------
@@ -117,7 +119,7 @@ write_sectors_lba:
         ret
 
 ; ----------------------------------------------------------------------------
-;  int25_handler：绝对磁盘读（对标 MS-DOS INT 25h）
+;  int25_handler：绝对磁盘读（INT 25h）
 ;  入口：AL=驱动器号, CX=扇区数, DX=起始 LBA, DS:BX=缓冲
 ;  出口：CF 表示状态；返回后栈上残留 FLAGS，调用者需 popf 弹出
 ; ----------------------------------------------------------------------------

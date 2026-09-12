@@ -1,12 +1,12 @@
 ; ============================================================================
 ;  LPY-DOS 内核主文件 LPYOS.SYS
-;  对标 MS-DOS 的 IO.SYS / MSDOS.SYS 角色：实模式内核
+;  实模式内核：提供系统调用、文件系统、内存管理与 EXEC
 ;  加载地址：0x1000:0x0000（引导扇区加载），CS=DS=ES=SS=0x1000, SP=0xFFFE
 ;  提供 INT 20h/21h 系统调用、FAT12/16 文件系统、MCB 内存管理与 EXEC
 ;
 ;  编译：fasm kernel.asm LPYOS.SYS（结合其他模块）
 ;
-;  Copyright (C) 2026 Nexlyh
+;  Copyright (C) 2026 Nexsteaduser
 ;  This program is free software: you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
 ;  the Free Software Foundation, either version 3 of the License, or
@@ -98,6 +98,7 @@ line_data        db 128 dup(0)
 fat_buf          db 512 dup(0)  ; FAT 扇区缓冲
 dir_buf          db 512 dup(0)  ; 目录扇区缓冲
 path_buf         db 128 dup(0)  ; 路径解析缓冲
+exec_cmdline     db 200 dup(0)  ; EXEC 子进程命令行尾部（首字节=长度）
 ; 文件句柄表：句柄号 -> 文件描述符偏移（0xFFFF = 空闲）
 handles          dw NUM_HANDLES dup(0FFFFh)
 ; 文件描述符数组
@@ -112,6 +113,9 @@ kentry:
 
         ; 初始化中断向量表
         call setup_ivt
+        ; 恢复 ES 为内核数据段（setup_ivt 写 IVT 时曾将 ES 置 0）
+        mov ax, KERNEL_SEG
+        mov es, ax
         ; 从磁盘读取引导扇区 BPB
         call load_bpb
         ; 初始化内存管理（建立 MCB 链）
@@ -245,6 +249,7 @@ include 'api.asm'       ; INT 21h 分发与系统服务
 include 'disk.asm'      ; 磁盘底层驱动
 include 'fat.asm'       ; FAT12/16 文件系统
 include 'memory.asm'    ; MCB 内存管理与 EXEC
+include 'gfx.asm'       ; VGA 图形服务（INT 21h AH=70..7A）
 
 ; ============================================================================
 ;  reshell：重新加载并执行命令解释器
@@ -269,17 +274,72 @@ reshell:
 shell_name      db 'A:\LPYCMD.COM', 0
 
 ; ----------------------------------------------------------------------------
-;  print_banner：显示版本横幅
+;  print_banner：显示彩色 ASCII LOGO 与版本横幅
 ;  入口：无，出口：无
 ; ----------------------------------------------------------------------------
 print_banner:
+        call print_logo         ; 输出彩色 ASCII "LPY-DOS" LOGO
+        ; 把光标定位到 LOGO 之后的空行
+        mov ax, 0200h
+        xor bh, bh
+        mov dh, [logo_rows]
+        xor dl, dl
+        int 10h
         mov si, msg_banner
         call print_str
         ret
 
+; ----------------------------------------------------------------------------
+;  print_logo：用 BIOS 绘制多行 ASCII LOGO（字符+属性，行 0 起）
+;  每行以 '$' 结尾，数据整体以 0 结尾；颜色取 logo_attr
+; ----------------------------------------------------------------------------
+print_logo:
+        push ax bx cx dx si
+        mov byte [logo_rows], 0
+        mov byte [logo_col], 0
+        mov si, logo
+.loop:
+        mov al, [si]
+        test al, al
+        jz .done
+        cmp al, '$'
+        je .nl
+        push si
+        mov ah, 02h
+        mov bh, 0
+        mov dh, [logo_rows]
+        mov dl, [logo_col]
+        int 10h                  ; 定位光标
+        mov ah, 09h
+        mov al, [si]
+        mov bl, [logo_attr]
+        mov cx, 1
+        int 10h                  ; 写字符+属性
+        pop si
+        inc byte [logo_col]
+        inc si
+        jmp .loop
+.nl:
+        inc byte [logo_rows]
+        mov byte [logo_col], 0
+        inc si
+        jmp .loop
+.done:
+        pop si dx cx bx ax
+        ret
+
+logo    db 'L     PPPPP Y   Y ----- DDDDD  OOO   SSS ', '$'
+        db 'L     P   P  Y Y  ----- D   D O   O S     ', '$'
+        db 'L     PPPPP   Y   ----- D   D O   O  SSS  ', '$'
+        db 'L     P       Y   ----- D   D O   O     S ', '$'
+        db 'LLLLL P      Y   ----- DDDDD  OOO   SSS ', 0
+logo_attr       db 0Ah           ; 前景亮绿
+logo_rows       db 0
+logo_col        db 0
+
 msg_banner      db 0Dh,0Ah
                 db 'LPY-DOS Version 1.0.0', 0Dh,0Ah
-                db 'Copyright (C) 2026 Nexlyh', 0Dh,0Ah
+                db 'Copyright (C) 2026 Nexsteaduser', 0Dh,0Ah
                 db 'This is free software under the GNU GPL v3 or later.', 0Dh,0Ah,0Dh,0Ah,0
 
 ; ============================================================================

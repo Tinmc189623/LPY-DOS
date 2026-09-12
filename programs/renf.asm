@@ -37,4 +37,13 @@ s_err   db 'Cannot rename.', 0Dh, 0Ah, '$'
 oldname db 64 dup(0)
 newname db 64 dup(0)
 
+logo_attr db 05h
+logo_data db 'RRRR   EEEEE  N   N  FFFFF$'
+          db 'R   R  E      NN  N  F    $'
+          db 'RRRR   EEE    N N N  FFF  $'
+          db 'R   R  E      N  NN  F    $'
+          db 'R   R  EEEEE  N   N  F    $'
+          db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

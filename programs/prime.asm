@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  prime.com — 列出小于等于 N 的全部素数（试除法判定）
 ; ============================================================================
 start:
+    call check_about
     mov dx, s_in
     call read_num           ; N -> AX
     mov bx, ax              ; 上限
@@ -60,4 +61,12 @@ s_in    db 'Enter upper bound N: $'
 s_out   db 'Primes below N: $'
 s_small db 'No primes.', 0Dh, 0Ah, '$'
 
+logo_attr db 05h
+logo_data db 'PPP  RRR  IIII M  M EEEE$'
+          db 'P  R R  R   I  MM M E   $'
+          db 'PPP  RRR    I  M M M EEE $'
+          db 'P    R R    I  M  M E   $'
+          db 'P    R  R IIII M  M EEEE$', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

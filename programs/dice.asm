@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  dice.com — 掷两颗骰子，显示点数与合计
 ; ============================================================================
 start:
+    call check_about
     ; 随机种子
     mov ah, 0
     int 1Ah
@@ -71,4 +72,13 @@ d1    dw 0
 d2    dw 0
 seed  dw 0
 
+logo_attr db 0x0F
+logo_data db '####  #####  #### #####$'
+db '#   #   #   #     #    $'
+db '#   #   #   #     #### $'
+db '#   #   #   #     #    $'
+db '####  #####  #### #####$'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

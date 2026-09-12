@@ -81,4 +81,13 @@ src     db 64 dup(0)
 dst     db 64 dup(0)
 buf     db 512 dup(0)
 
+logo_attr db 0x0A
+logo_data db ' ####  ###  ####  #   # #####$'
+db '#     #   # #   # #   # #    $'
+db '#     #   # ####   ###  #### $'
+db '#     #   # #       #   #    $'
+db ' ####  ###  #       #   #    $'
+db 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'

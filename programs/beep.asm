@@ -6,6 +6,7 @@ include 'inc/macro.asm'
 ;  beep.com — 扬声器发出一声短哔声
 ; ============================================================================
 start:
+    call check_about
     ; 打开扬声器（端口 0x61 bit0/1）
     in al, 61h
     or al, 3
@@ -30,4 +31,8 @@ start:
 
 s_msg db 'Beep!$'
 
+logo_attr db 3Eh
+logo_data db '###  #### #### ### $','#  # #    #    #  #$','###  ###  ###  ### $','#  # #    #    #   $','###  #### #### #   $', 0
+
 include 'inc/std.asm'
+include 'inc/logo.asm'
