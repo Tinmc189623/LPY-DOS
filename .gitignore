@@ -15,3 +15,12 @@ tools/vga2.bin
 # 本地大目录（勿入库）
 plexsdesk/
 deck_slides/
+
+# 内部协作文件（AI 规则/日志/计划），不入公开仓库
+operation-record-document.md
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+AGENT.md
+.coder-naogua/
+docs/superpowers/
