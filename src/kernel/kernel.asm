@@ -53,10 +53,11 @@ FD_LEN          equ 34         ; 描述符总长度
         jmp kentry
 
 ; ----------------------------------------------------------------------------
-;  头部信息区
+;  头部信息区（版本号来自 src/build/version.inc，由 build.ps1 从 version.ini 生成）
 ; ----------------------------------------------------------------------------
-kern_signature  db 'LPY-DOS kernel (LPYOS.SYS) v1.0.0', 0
-kern_version    db 1,0,0        ; 主/次/修订
+include '..\build\version.inc'
+kern_signature  db 'LPY-DOS kernel (LPYOS.SYS) v', '0'+VER_MAJOR, '.', '0'+VER_MINOR, '.', '0'+VER_PATCH, 0
+kern_version    db VER_MAJOR, VER_MINOR, VER_PATCH   ; 主/次/修订
 
 ; ----------------------------------------------------------------------------
 ;  系统变量区
@@ -346,7 +347,7 @@ logo_rows       db 0
 logo_col        db 0
 
 msg_banner      db 0Dh,0Ah
-                db 'LPY-DOS Version 1.0.0', 0Dh,0Ah
+                db 'LPY-DOS Version ', '0'+VER_MAJOR, '.', '0'+VER_MINOR, '.', '0'+VER_PATCH, 0Dh,0Ah
                 db 'Copyright (C) 2026 Nexsteaduser', 0Dh,0Ah
                 db 'This is free software under the GNU GPL v3 or later.', 0Dh,0Ah,0Dh,0Ah,0
 

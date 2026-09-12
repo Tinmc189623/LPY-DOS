@@ -96,6 +96,32 @@ function Name11([string]$stem, [string]$ext) {
 
 Write-Host '== LPY-DOS 构建 =========================================='
 
+# ---- 0. 读取 version.ini，生成 src/build/version.inc（版本唯一来源） ----
+Write-Host '[0]   读取 version.ini -> src/build/version.inc'
+$iniPath = Join-Path $PSScriptRoot 'version.ini'
+if (-not (Test-Path $iniPath)) { throw "未找到 version.ini: $iniPath" }
+$ini = @{}
+foreach ($line in (Get-Content $iniPath)) {
+    if ($line -match '^\s*([A-Za-z_]+)\s*=\s*"?([^"]*)"?\s*$') { $ini[$matches[1]] = $matches[2] }
+}
+if (-not $ini.ContainsKey('Release')) { throw 'version.ini 缺少 Release' }
+$rel = $ini['Release'].Trim('"').Split('.')
+$verMajor = [int]$rel[0]; $verMinor = [int]$rel[1]; $verPatch = [int]$rel[2]
+$buildDir = Join-Path $PSScriptRoot 'src\build'
+New-Item -ItemType Directory -Force $buildDir | Out-Null
+$vi  = "; 本文件由 build.ps1 自动生成，勿手改；唯一来源是根目录 version.ini`n"
+$vi += "; 若 version.ini 未变，请勿改动版本相关内容，只改实际代码`n"
+$vi += "VER_MAJOR  equ $verMajor`n"
+$vi += "VER_MINOR  equ $verMinor`n"
+$vi += "VER_PATCH  equ $verPatch`n"
+$vi += "VER_EDITION equ '$($ini['Edition'])'`n"
+$vi += "VER_BUILD  equ '$($ini['Build'])'`n"
+$vi += "VER_SDK    equ '$($ini['SDK'])'`n"
+$vi += "VER_API    equ '$($ini['API'])'`n"
+$vi += "VER_INT    equ '$($ini['INT'])'`n"
+[IO.File]::WriteAllText((Join-Path $buildDir 'version.inc'), $vi, (New-Object Text.UTF8Encoding($false)))
+Write-Host "  Release=$verMajor.$verMinor.$verPatch  Edition=$($ini['Edition'])  Build=$($ini['Build'])"
+
 # ---- 1. 编译系统文件 ----
 Write-Host '[1/3] 编译引导扇区（stage1 VBR：FAT12/16/32 三变体）'
 Invoke-Fasm 'src\boot\boot12.asm' 'src\boot\boot12.bin'

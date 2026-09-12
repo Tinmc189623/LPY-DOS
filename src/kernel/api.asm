@@ -542,9 +542,10 @@ fn_get_vector:
         mov es, ax
         ret
 
-; AH=30：取版本号（返回 AX=0100h 表示 v1.00）
+; AH=30：取版本号（返回 AX=major.minor，如 v1.00 -> AX=0100h）
 fn_get_version:
-        mov ax, 0100h
+        mov al, VER_MAJOR
+        mov ah, VER_MINOR
         xor bx, bx
         xor cx, cx
         ret

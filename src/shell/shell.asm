@@ -15,6 +15,8 @@
 use16
 org 100h
 
+include '..\build\version.inc'   ; 版本常量（由 build.ps1 从 version.ini 生成）
+
 start:
         jmp main
 
@@ -57,7 +59,7 @@ s_space4        db '    $'
 s_crlf2         db 0Dh,0Ah,0Dh,0Ah,'$'
 s_curdate       db 'Current date is $'
 s_curtime       db 'Current time is $'
-s_ver           db 'LPY-DOS Version 1.0.0',0Dh,0Ah
+s_ver           db 'LPY-DOS Version ', '0'+VER_MAJOR, '.', '0'+VER_MINOR, '.', '0'+VER_PATCH, 0Dh,0Ah
                 db 'Copyright (C) 2026 Nexsteaduser',0Dh,0Ah
                 db 'GNU GPL v3 or later',0Dh,0Ah,'$'
 
