@@ -98,29 +98,29 @@ Write-Host '== LPY-DOS 构建 =========================================='
 
 # ---- 1. 编译系统文件 ----
 Write-Host '[1/3] 编译引导扇区（stage1 VBR：FAT12/16/32 三变体）'
-Invoke-Fasm 'boot\boot12.asm' 'boot\boot12.bin'
-Invoke-Fasm 'boot\boot16.asm' 'boot\boot16.bin'
-Invoke-Fasm 'boot\boot32.asm' 'boot\boot32.bin'
-Invoke-Fasm 'boot\testboot.asm' 'boot\testboot.com'
+Invoke-Fasm 'src\boot\boot12.asm' 'src\boot\boot12.bin'
+Invoke-Fasm 'src\boot\boot16.asm' 'src\boot\boot16.bin'
+Invoke-Fasm 'src\boot\boot32.asm' 'src\boot\boot32.bin'
+Invoke-Fasm 'src\boot\testboot.asm' 'src\boot\testboot.com'
 
 Write-Host '[2/3] 编译内核 LPYOS.SYS'
-Invoke-Fasm 'kernel\kernel.asm' 'LPYOS.SYS'
+Invoke-Fasm 'src\kernel\kernel.asm' 'LPYOS.SYS'
 
 Write-Host '[3/3] 编译命令解释器 LPYCMD.COM'
-Invoke-Fasm 'shell\shell.asm' 'LPYCMD.COM'
+Invoke-Fasm 'src\shell\shell.asm' 'LPYCMD.COM'
 
 Write-Host '[3b]  编译 stage2 加载器 LOADR.SYS'
-Invoke-Fasm 'boot\loadr.asm' 'LOADR.SYS'
+Invoke-Fasm 'src\boot\loadr.asm' 'LOADR.SYS'
 
 Write-Host '[3c]  编译 MBR（仅产出，不打包进软盘镜像）'
-Invoke-Fasm 'boot\mbr.asm' 'boot\MBR.BIN'
+Invoke-Fasm 'src\boot\mbr.asm' 'src\boot\MBR.BIN'
 
 # ---- 1.5 编译全部外部程序 ----
 Write-Host '[*]   编译 programs/*.asm（外部 .COM 程序）'
 $programComs = @()
-foreach ($src in (Get-ChildItem "$PSScriptRoot\programs\*.asm" | Sort-Object Name)) {
+foreach ($src in (Get-ChildItem "$PSScriptRoot\src\programs\*.asm" | Sort-Object Name)) {
     $base = [IO.Path]::GetFileNameWithoutExtension($src.Name)
-    $out  = "$PSScriptRoot\programs\$base.COM"
+    $out  = "$PSScriptRoot\src\programs\$base.COM"
     Invoke-Fasm $src.FullName $out
     $programComs += $out
 }
@@ -129,7 +129,7 @@ Write-Host "  共编译 $($programComs.Count) 个外部程序"
 # ---- 2. 构造镜像 ----
 Write-Host '== 生成 FAT12 镜像 ======================================='
 
-$boot   = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'boot\boot12.bin'))
+$boot   = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'src\boot\boot12.bin'))
 $kernel = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYOS.SYS'))
 $shell  = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYCMD.COM'))
 

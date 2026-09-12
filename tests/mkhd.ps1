@@ -36,7 +36,7 @@ $DataStart  = $PartStart + $RsvdSecCnt + $NumFATs * $FatSz + $RootSects
 $img = New-Object byte[] (($PartStart + $TotSec) * $BytsPerSec)
 
 # ---- MBR + 分区表第 1 项 ----
-$mbr = [IO.File]::ReadAllBytes((Join-Path $root 'boot\MBR.BIN'))
+$mbr = [IO.File]::ReadAllBytes((Join-Path $root 'src\boot\MBR.BIN'))
 if ($mbr.Length -ne 512) { throw "MBR.BIN 必须 512 字节，实际 $($mbr.Length)" }
 [Array]::Copy($mbr, 0, $img, 0, 512)
 $img[446] = 0x80                                                # 活动
@@ -45,7 +45,7 @@ $img[450] = if ($FatBits -eq 16) { 0x0E } else { 0x0C }         # FAT16/32 LBA �
 [Array]::Copy([BitConverter]::GetBytes([uint32]$TotSec),   0, $img, 458, 4)
 
 # ---- VBR（变体 bin + BPB 补丁） ----
-$vbrFile = if ($FatBits -eq 16) { 'boot\boot16.bin' } else { 'boot\boot32.bin' }
+$vbrFile = if ($FatBits -eq 16) { 'src\boot\boot16.bin' } else { 'src\boot\boot32.bin' }
 $vbr = [IO.File]::ReadAllBytes((Join-Path $root $vbrFile))
 if ($vbr.Length -ne 512) { throw "$vbrFile 必须 512 字节，实际 $($vbr.Length)" }
 function Set-Bpb([byte[]]$v, [int]$off, [uint32]$val, [int]$size) {

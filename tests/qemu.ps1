@@ -27,9 +27,9 @@ function Start-LpyQemu {
     Start-Sleep -Milliseconds 500
     $qemu = Find-LpyQemu
     $script:LpyMonitorPort = Get-Random -Minimum 20000 -Maximum 30000
-    $drive = if ($Hd) { 'disk' } else { 'floppy' }
+    $drv = if ($Hd) { 'file=' + $Image + ',format=raw,index=0,media=disk' } else { 'file=' + $Image + ',format=raw,if=floppy' }
     $boot  = if ($Hd) { '-boot','c' } else { '-boot','a' }
-    $args  = @('-drive',"file=$Image,format=raw,index=0,media=$drive") + $boot + @('-display','none','-monitor',"telnet:127.0.0.1:$($script:LpyMonitorPort),server,nowait")
+    $args  = @('-drive',$drv) + $boot + @('-display','none','-monitor',"telnet:127.0.0.1:$($script:LpyMonitorPort),server,nowait")
     $script:LpyQemuProc = Start-Process -FilePath $qemu -ArgumentList $args -PassThru
     Start-Sleep -Seconds 2
     if ($script:LpyQemuProc.HasExited) { throw "QEMU 启动即退出（端口 $script:LpyMonitorPort 可能被占用）" }
