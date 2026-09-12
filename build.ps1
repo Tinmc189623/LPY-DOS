@@ -122,27 +122,34 @@ $vi += "VER_INT    equ '$($ini['INT'])'`n"
 [IO.File]::WriteAllText((Join-Path $buildDir 'version.inc'), $vi, (New-Object Text.UTF8Encoding($false)))
 Write-Host "  Release=$verMajor.$verMinor.$verPatch  Edition=$($ini['Edition'])  Build=$($ini['Build'])"
 
+# 构建产物统一输出目录（version.ini [TARGET] BUILD_DIR，默认 bin）
+$BuildDir = if ($ini['BUILD_DIR']) { $ini['BUILD_DIR'] } else { 'bin' }
+$BinRoot  = Join-Path $PSScriptRoot $BuildDir
+$BinProgs = Join-Path $BinRoot 'programs'
+New-Item -ItemType Directory -Force $BinRoot | Out-Null
+New-Item -ItemType Directory -Force $BinProgs | Out-Null
+
 # ---- 1. 编译系统文件 ----
 Write-Host '[1/3] 编译引导扇区（stage1 VBR：FAT12/16/32 三变体）'
-Invoke-Fasm 'src\boot\boot12.asm' 'src\boot\boot12.bin'
-Invoke-Fasm 'src\boot\boot16.asm' 'src\boot\boot16.bin'
-Invoke-Fasm 'src\boot\boot32.asm' 'src\boot\boot32.bin'
-Invoke-Fasm 'src\boot\testboot.asm' 'src\boot\testboot.com'
+Invoke-Fasm 'src\boot\boot12.asm' (Join-Path $BinRoot 'boot12.bin')
+Invoke-Fasm 'src\boot\boot16.asm' (Join-Path $BinRoot 'boot16.bin')
+Invoke-Fasm 'src\boot\boot32.asm' (Join-Path $BinRoot 'boot32.bin')
+Invoke-Fasm 'src\boot\testboot.asm' (Join-Path $BinRoot 'testboot.com')
 
 Write-Host '[2/3] 编译内核 LPYOS.SYS'
-Invoke-Fasm 'src\kernel\kernel.asm' 'LPYOS.SYS'
+Invoke-Fasm 'src\kernel\kernel.asm' (Join-Path $BinRoot 'LPYOS.SYS')
 
 Write-Host '[3/3] 编译命令解释器 LPYCMD.COM'
-Invoke-Fasm 'src\shell\shell.asm' 'LPYCMD.COM'
+Invoke-Fasm 'src\shell\shell.asm' (Join-Path $BinRoot 'LPYCMD.COM')
 
 Write-Host '[3b]  编译 stage2 加载器 LOADR.SYS'
-Invoke-Fasm 'src\boot\loadr.asm' 'LOADR.SYS'
+Invoke-Fasm 'src\boot\loadr.asm' (Join-Path $BinRoot 'LOADR.SYS')
 
 Write-Host '[3c]  编译 MBR（仅产出，不打包进软盘镜像）'
-Invoke-Fasm 'src\boot\mbr.asm' 'src\boot\MBR.BIN'
+Invoke-Fasm 'src\boot\mbr.asm' (Join-Path $BinRoot 'MBR.BIN')
 
 Write-Host '[3d]  编译 386 保护模式扩展 EXT32.BIN（独立二进制，不进 16 位内核）'
-Invoke-Fasm 'src\kernel\arch\i386\ext32.asm' 'EXT32.BIN'
+Invoke-Fasm 'src\kernel\arch\i386\ext32.asm' (Join-Path $BinRoot 'EXT32.BIN')
 # 若存在 i386-elf-gcc，则尝试把 C 运行时编进扩展；无工具链时跳过，asm 自带 kmain 占位
 $gcc = Get-Command i386-elf-gcc -ErrorAction SilentlyContinue
 if ($gcc) {
@@ -160,7 +167,7 @@ Write-Host '[*]   编译 programs/*.asm（外部 .COM 程序）'
 $programComs = @()
 foreach ($src in (Get-ChildItem "$PSScriptRoot\src\programs\*.asm" | Sort-Object Name)) {
     $base = [IO.Path]::GetFileNameWithoutExtension($src.Name)
-    $out  = "$PSScriptRoot\src\programs\$base.COM"
+    $out  = Join-Path $BinProgs "$base.COM"
     Invoke-Fasm $src.FullName $out
     $programComs += $out
 }
@@ -169,16 +176,16 @@ Write-Host "  共编译 $($programComs.Count) 个外部程序"
 # ---- 2. 构造镜像 ----
 Write-Host '== 生成 FAT12 镜像 ======================================='
 
-$boot   = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'src\boot\boot12.bin'))
-$kernel = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYOS.SYS'))
-$shell  = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYCMD.COM'))
+$boot   = [IO.File]::ReadAllBytes((Join-Path $BinRoot 'boot12.bin'))
+$kernel = [IO.File]::ReadAllBytes((Join-Path $BinRoot 'LPYOS.SYS'))
+$shell  = [IO.File]::ReadAllBytes((Join-Path $BinRoot 'LPYCMD.COM'))
 
 if ($boot.Length -ne 512)         { throw "boot12.bin 应为 512 字节（实际 $($boot.Length)）" }
 if ($kernel.Length -gt 32768)     { throw "LPYOS.SYS 超过 32KB（引导扇区无法加载）" }
 
 # 文件清单：stage2 + 内核 + shell + 所有程序
 $items = @()
-$loadr = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LOADR.SYS'))
+$loadr = [IO.File]::ReadAllBytes((Join-Path $BinRoot 'LOADR.SYS'))
 if ($loadr.Length -gt 8192) { throw "LOADR.SYS 超过 8KB" }
 $items += ,@{ name = Name11 'LOADR' 'SYS'; data = $loadr }
 $items += ,@{ name = Name11 'LPYOS' 'SYS'; data = $kernel }
@@ -233,7 +240,7 @@ for ($f = 0; $f -lt $NumFATs; $f++) {
 }
 
 # ---- 写出镜像 ----
-$imgPath = Join-Path $PSScriptRoot 'LPY-DOS.img'
+$imgPath = Join-Path $BinRoot 'LPY-DOS.img'
 # 若旧的 .img 被其它进程占用，先改名腾出路径再写入；随后清理临时备份
 if ([IO.File]::Exists($imgPath)) {
     try { [IO.File]::Move($imgPath, ($imgPath + '.bak')) }
@@ -246,6 +253,21 @@ if ([IO.File]::Exists($imgPath)) {
 if ([IO.File]::Exists($imgPath + '.bak')) { Remove-Item ($imgPath + '.bak') -Force -ErrorAction SilentlyContinue }
 Write-Host "  镜像已生成: $imgPath ($($img.Length) 字节)"
 Write-Host "  共写入 $($items.Count) 个文件，占用 $($nextClu - 2) 簇"
+
+# ---- 2.5 预装硬盘镜像（MBR + FAT16 VBR + 系统文件，可直接引导）----
+Write-Host '== 生成预装硬盘镜像 ======================================='
+$py = Get-Command python -ErrorAction SilentlyContinue
+if ($py) {
+    & $py (Join-Path $PSScriptRoot 'tools\make-hd-image.py')
+    if ($LASTEXITCODE -ne 0) { throw '预装硬盘镜像生成失败' }
+    $qemuImg = Join-Path (Split-Path $Qemu -Parent) 'qemu-img.exe'
+    if ((Test-Path $qemuImg)) {
+        & $qemuImg convert -f raw (Join-Path $BinRoot 'LPY-DOS-HD.img') -O vmdk (Join-Path $BinRoot 'LPY-DOS-HD.vmdk') | Out-Null
+        Write-Host "  VMDK: $(Join-Path $BinRoot 'LPY-DOS-HD.vmdk')"
+    }
+} else {
+    Write-Host '  未找到 python，跳过预装硬盘镜像'
+}
 
 # ---- 3. 启动 QEMU ----
 if ($args -contains 'run') {
