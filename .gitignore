@@ -1,5 +1,19 @@
-# 编辑器与工具配置目录
+# 编辑器与工具配置目录（rules 被 CLAUDE.md 引用，需入库；specs 含调试产物不入库）
 .trae/
 .vscode/
-# build.ps1 从 version.ini 生成，勿提交
+.coder-naogua/specs/
+
+# 构建产物（build.ps1 统一输出到 bin/）
+bin/
 src/build/
+
+# 调试转储与日志
+*.log
+tools/*_out.txt
+tools/dump_*.txt
+tools/verify_*.txt
+tools/vga2.bin
+
+# 本地大目录（勿入库）
+plexsdesk/
+deck_slides/

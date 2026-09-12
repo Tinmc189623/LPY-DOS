@@ -1,8 +1,0 @@
-=== LPY-DOS EXEC 循环验证 ===
-[1] shell 提示符出现: PASS
-[2] hello: PASS (回显+无错误+提示符)
-[3] hello: PASS (回显+无错误+提示符)
-[4] calc: FAIL (echo=False err_free=True alive=True)
-[5] ver: FAIL (echo=False err_free=True alive=True)
-ERR [WinError 10054] 远程主机强迫关闭了一个现有的连接。
-=== 最终屏幕 ===
