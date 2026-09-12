@@ -1,9 +1,9 @@
 ; ============================================================================
-;  LPY-DOS 引导扇区 (FAT12 / 1.44MB 软盘)
-;  引导流程：解析根目录、按 FAT12 链加载 LPYOS.SYS 内核
-;  内核加载地址：0x1000:0x0000（内核大小须小于 32KB）
-;
-;  编译：fasm boot.asm boot.bin
+;  boot/boot.asm — LPY-DOS stage1 引导扇区主体（2.0 两阶段引导）
+;  本文件不直接编译；由 boot12.asm / boot16.asm / boot32.asm 包装编译：
+;    包装定义 BPB_* 几何常量、FATBITS（1/2/3）、TARGET_NAME（equ 字符串）
+;  职责：保存 DL → 写引导上下文块 → 按扩展块目标名加载 LOADR.SYS 到
+;        0x2000:0000 → 跳转（DL 保持）
 ;
 ;  Copyright (C) 2026 Nexsteaduser
 ;  This program is free software: you can redistribute it and/or modify
@@ -15,238 +15,125 @@
 use16
 org 0x7C00
 
-; ----------------------------------------------------------------------------
-;  BPB（BIOS Parameter Block），与 MS-DOS 1.44MB 软盘保持一致
-; ----------------------------------------------------------------------------
+include 'boot.inc'
+
+if ~ defined FATBITS
+        display 'boot.asm: FATBITS 未定义（须由 boot12/16/32.asm 包装编译）'
+        err 'FATBITS undefined'
+end if
+if ~ defined TARGET_NAME
+        display 'boot.asm: TARGET_NAME 未定义'
+        err 'TARGET_NAME undefined'
+end if
+
+; ---------------- BPB（值来自包装常量） ----------------
         jmp short boot_start
         nop
-bsOemName       db 'LPY-DOS '        ; OEM 名（8 字节）
-bpbBytsPerSec   dw 512               ; 每扇区字节数
-bpbSecPerClus   db 1                 ; 每簇扇区数
-bpbRsvdSecCnt   dw 1                 ; 保留扇区数
-bpbNumFATs      db 2                 ; FAT 表份数
-bpbRootEntCnt   dw 224               ; 根目录项数
-bpbTotSec16     dw 2880              ; 总扇区数
-bpbMedia        db 0F0h              ; 介质描述符
-bpbFATSz16      dw 9                 ; 每份 FAT 占扇区数
-bpbSecPerTrk    dw 18                ; 每磁道扇区数
-bpbNumHeads     dw 2                 ; 磁头数
-bpbHiddSec      dd 0                 ; 隐藏扇区
-bpbTotSec32     dd 0                 ; 32 位总扇区数
+        db 'LPY-DOS '
+        dw BPB_BYTS_PER_SEC
+        db BPB_SEC_PER_CLUS
+        dw BPB_RSVD
+        db BPB_NUM_FATS
+        dw BPB_ROOT_ENT
+        dw BPB_TOT16
+        db BPB_MEDIA
+        dw BPB_FATSZ16
+        dw BPB_SPT
+        dw BPB_HEADS
+        dd BPB_HIDD
+        dd BPB_TOT32
+if FATBITS = FAT32
+        dd BPB_FATSZ32        ; fatSz32 @36
+        dw 0                  ; extFlags
+        dw 0                  ; fsVer
+        dd BPB_ROOTCLUS       ; rootClus @44
+        dw 1                  ; fsInfo
+        dw 6                  ; bkBootSec
+        db 12 dup (0)         ; rsvd32
+else
+        db 28 dup (0)         ; FAT12/16 不使用 36..63
+end if
 
-; 根目录区起始扇区 = 保留扇区数 + FAT 份数 * 每 FAT 扇区数
-ROOT_DIR_START  equ 1 + (2 * 9)
-; 根目录占扇区数 = (根目录项数 * 32 + 511) / 512
-ROOT_DIR_SECTS  equ (224 * 32 + 511) / 512
-; 数据区起始扇区 = 根目录区起始 + 根目录占扇区数
-DATA_START      equ ROOT_DIR_START + ROOT_DIR_SECTS
+; ---------------- 扩展块 @0x40 ----------------
+ext_target      db TARGET_NAME
+ext_media       db 0
+ext_magic       dw EXT_MAGIC
+assert $-$$ = 0x4E               ; 头部区止于 0x4E，代码区自此到 0x1FD
 
 boot_start:
         cli
         xor ax, ax
-        mov ss, ax                  ; 栈段 0x0000
-        mov sp, 7C00h               ; 栈顶位于引导区之下
-        mov ds, ax
-        mov es, ax
-        sti
-
-        mov [boot_drive], dl        ; 保存 BIOS 传入的驱动器号
-
-        ; ---- 读根目录到 0x0200:0x0000 ----
-        mov ax, 2000h
-        mov es, ax
-        mov ax, ROOT_DIR_START
-        mov cx, ROOT_DIR_SECTS
-        xor bx, bx
-        call read_sectors
-
-        ; ---- 在根目录中查找 "LPYOS    SYS" ----
-        xor di, di                  ; 目录项偏移
-        mov cx, bpbRootEntCnt       ; 根目录项数
-.find_entry:
-        push cx
-        push di
-        mov si, filename            ; 待匹配文件名
-        mov cx, 11
-        repe cmpsb                  ; 比较 11 字节文件名
-        pop di
-        pop cx
-        je .found
-        add di, 32                  ; 定位到下一个目录项
-        loop .find_entry
-        mov si, msg_no_kernel
-        call print
-        jmp hang
-
-.found:
-        ; 目录项偏移 +0x1A 处为起始簇号
-        mov ax, [es:di+1Ah]
-        mov [first_cluster], ax
-
-        ; ---- 按 FAT 链加载内核到 0x1000:0x0000 ----
-        mov ax, 1000h
-        mov es, ax
-        xor bx, bx
-        mov ax, [first_cluster]
-.load_cluster:
-        mov si, ax                  ; 保存当前簇号
-        ; 数据区扇区号 = DATA_START + (簇号 - 2) * 每簇扇区数（每簇 1 扇区）
-        add ax, DATA_START - 2
-        mov cx, 1
-        call read_sectors           ; 读一簇到 es:bx
-        mov ax, si
-        call next_cluster           ; 获取下一簇号
-        cmp ax, 0FF8h               ; FAT12 结束标记 >= 0xFF8
-        jae .done
-        add bx, 512                 ; 缓冲区后移一个扇区
-        jmp .load_cluster
-
-.done:
-        ; ---- 跳转到内核（DS=ES=SS=0x1000, SP=0xFFFE）----
-        mov ax, 1000h
-        mov ds, ax
-        mov es, ax
-        cli
         mov ss, ax
-        mov sp, 0FFFEh
+        mov sp, VBR_LIN
+        mov ds, ax
+        mov es, ax
         sti
-        jmp 1000h:0000h
+        mov [boot_drive], dl
 
-hang:
-        jmp hang
+        ; ---- 引导上下文块：无 MBR 自建；有 MBR 保留其写入的分区 LBA ----
+        mov si, CTX_LIN
+        cmp word [si], CTX_MAGIC
+        je .ctx_kept
+        mov word [si], CTX_MAGIC    ; LBA 字段留作 BDA 零（软盘）/ MBR 已写（硬盘）
+.ctx_kept:
+        mov byte [si+6], FATBITS
+        mov [si+7], dl              ; DL 仍为 BIOS 传入的盘号
 
-; ============================================================================
-;  子程序区
-; ============================================================================
+if FATBITS = FAT32
+        ; DAP 扩展检测省略：无扩展时 ah=42 失败即跳 s1_err_disk（测试目标 QEMU 恒有扩展）
+end if
 
-; ----------------------------------------------------------------------------
-;  print：向屏幕输出以 0 结尾的字符串
-;  入口：DS:SI = 字符串地址，无出口
-; ----------------------------------------------------------------------------
-print:
-        lodsb
-        test al, al
-        jz .done
-        mov ah, 0Eh                 ; BIOS 电传模式写字符
+        ; ---- 加载 LOADR.SYS → STAGE2_SEG:0 ----
+        mov ax, STAGE2_SEG
+        mov es, ax
         xor bx, bx
-        int 10h
-        jmp print
-.done:
-        ret
+        call s1_load
+        jmp STAGE2_SEG:0
+READ_FILE s1_load, FATBITS, VBR_LIN, ROOTBUF_SEG, ROOTBUF_SEG, ROOTBUF_FATOFF, ext_target, s1_read, s1_next, s1_err_disk, s1_noloader
 
-; ----------------------------------------------------------------------------
-;  read_sectors：从磁盘读取连续扇区
-;  入口：AX = 起始 LBA，CX = 扇区数，ES:BX = 目标缓冲区
-;  出口：失败时打印错误信息并挂起
-;  说明：失败时复位驱动器并重试（retry_cnt 次），仍失败打印错误信息后挂起
-; ----------------------------------------------------------------------------
-read_sectors:
-        pusha
-.loop:
-        push ax
-        push cx
-        push bx
-        mov [sec_lba], ax           ; 暂存当前 LBA（重试时重新取用）
-        mov byte [retry_cnt], 4     ; 最多重试 4 次
-.retry:
-        ; LBA 转 CHS：
-        ;   扇区号 = LBA % 每磁道扇区数 + 1
-        ;   磁道号 = LBA / (每磁道扇区数 * 磁头数)
-        ;   磁头号 = (LBA / 每磁道扇区数) % 磁头数
-        ; 注意：BX 必须保留缓冲区偏移，扇区号用内存变量暂存
-        mov ax, [sec_lba]
-        xor dx, dx
-        mov cx, 18                  ; 每磁道扇区数
-        div cx                      ; ax = LBA/18, dx = LBA%18
-        inc dx                      ; 扇区号 (1..18)
-        mov [sec_num], dl           ; 暂存扇区号
-        xor dx, dx
-        mov cx, 2                   ; 磁头数
-        div cx                      ; ax = 磁道, dx = 磁头
-        mov ch, al                  ; 磁道号（1.44MB 下 < 256，仅用低 8 位）
-        mov cl, [sec_num]           ; 扇区号
-        mov dh, dl                  ; 磁头号
-        mov dl, [boot_drive]        ; 驱动器号
-        mov al, 1                   ; 读 1 扇区
-        mov ah, 02h
-        int 13h
-        jnc .ok
-        mov ah, 0
-        int 13h                     ; 复位磁盘后重试
-        dec byte [retry_cnt]
-        jnz .retry
-        mov si, msg_disk_error
-        call print
-        jmp hang
-.ok:
-        pop bx
-        pop cx
-        pop ax
-        inc ax                      ; 下一个 LBA
-        add bx, 512                 ; 缓冲区后移
-        loop .loop
-        popa
-        ret
+; ---------------- 终态错误路径 ----------------
+s1_noloader:
+        mov si, msg_noloader
+        jmp s1_err_common
+s1_err_disk:
+        mov si, msg_s1disk
+s1_err_common:
+        call print_str
+        jmp s1_hang
 
-; ----------------------------------------------------------------------------
-;  next_cluster：FAT12 中获取下一簇号
-;  入口：AX = 当前簇号
-;  出口：AX = 下一簇号
-;  说明：FAT12 每簇占 1.5 字节，偶数簇取低 12 位，奇数簇取高 12 位
-; ----------------------------------------------------------------------------
-next_cluster:
-        push bx
-        push cx
-        push dx
-        push si
-        push di
-        push es
+; ---------------- 读扇区：先加分区起始 LBA，再按变体实例化 ----------------
+; READ_FILE / FAT_NEXT 给出的是卷内 LBA；MBR 分区引导时 CTX 块 +2 存分区起始
+if FATBITS = FAT32
+s1_read:
+        add eax, [CTX_LIN+2]        ; 卷内 LBA + 分区起始（32 位）；落入 s1_dap
+        DAP_READ s1_dap, 4, s1_err_disk
+        FAT_NEXT s1_next, FAT32, VBR_LIN, ROOTBUF_SEG, ROOTBUF_FATOFF, s1_read, s1_err_disk
+else
+s1_read:
+        add ax, [CTX_LIN+2]         ; + 分区起始低 16 位（软盘为 0）
+        jc s1_overrange
+        jmp s1_chs
+s1_overrange:                       ; 绝对 LBA 超 16 位：FAT12/16 卷 >64K 扇区不支持
+        mov si, msg_overrange
+        call print_str
+        jmp s1_hang
+        CHS_READ s1_chs, [boot_drive], [VBR_LIN+bpbT.secPerTrk], [VBR_LIN+bpbT.numHeads], 4, s1_err_disk
+        FAT_NEXT s1_next, FATBITS, VBR_LIN, ROOTBUF_SEG, ROOTBUF_FATOFF, s1_read, s1_err_disk
+end if
 
-        mov bp, ax                  ; bp = 簇号（read_sectors 的 pusha/popa 会保留 BP）
-        mov si, ax
-        shr si, 1
-        add si, ax                  ; si = 簇号 * 1.5（FAT 内字节偏移）
+PRINT_PROCS
+s1_hang:
+        hlt
+        jmp s1_hang
 
-        mov ax, si
-        xor dx, dx
-        mov cx, 512
-        div cx                      ; ax = 偏移/512, dx = 偏移%512
-        push dx                     ; 暂存扇区内偏移
-        add ax, 1                   ; FAT 区起始 LBA = 1
-        mov cx, 1
-        mov di, 0050h               ; 临时 FAT 缓冲区段
-        mov es, di
-        xor bx, bx
-        call read_sectors
-        pop di                      ; 恢复扇区内偏移
-        mov ax, [es:di]             ; 读取 16 位 FAT 项
-        test bp, 1                  ; 判断簇号奇偶（BP = 原始簇号，被 pusha/popa 保留）
-        jnz .odd
-        and ax, 0FFFh               ; 偶数簇：取低 12 位
-        jmp .done
-.odd:
-        shr ax, 4                   ; 奇数簇：取高 12 位
-.done:
-        pop es
-        pop di
-        pop si
-        pop dx
-        pop cx
-        pop bx
-        ret
+; ---------------- 数据 ----------------
+boot_drive      db 0
+msg_s1disk      db 'E', 0
+msg_noloader    db 'LD', 0
+if FATBITS <> FAT32
+msg_overrange   db 'OV', 0
+end if
 
-; ----------------------------------------------------------------------------
-;  数据区
-; ----------------------------------------------------------------------------
-boot_drive      db 0                ; 启动驱动器号
-first_cluster   dw 0                ; 内核起始簇号
-sec_num         db 0                ; CHS 转换临时扇区号
-sec_lba         dw 0                ; read_sectors 当前 LBA（重试时重新取用）
-retry_cnt       db 0                ; 读盘重试计数
-filename        db 'LPYOS   SYS'   ; 内核文件名（11 字节，8.3 格式）
-msg_no_kernel   db 0Dh,0Ah,'LPY-DOS: kernel LPYOS.SYS not found.',0Dh,0Ah,0
-msg_disk_error  db 0Dh,0Ah,'LPY-DOS: disk read error.',0Dh,0Ah,0
-
-; 填充至 510 字节并以 0x55AA 结尾
+assert $-$$ <= 510
 times 510-($-$$) db 0
-dw 0AA55h
+dw 0xAA55

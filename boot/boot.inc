@@ -109,6 +109,7 @@ assert partT.lba     = 8
 assert extT.magic    = 12
 
 ; ---------------- 打印例程（每个汇编单元实例化一次） ----------------
+; 仅保留 print_str；十六进制转储空间紧张，错误信息以短字符串直接给出
 macro PRINT_PROCS {
 print_str:                   ; DS:SI = 0 结束字符串；破坏 AX BX SI
         lodsb
@@ -120,27 +121,6 @@ print_str:                   ; DS:SI = 0 结束字符串；破坏 AX BX SI
         jmp print_str
 .done:
         ret
-hex_nib:                     ; AL 低 4 位 → 字符；破坏 AX BX
-        and al, 0x0F
-        cmp al, 10
-        jb .digit
-        add al, 'A'-10
-        jmp .emit
-.digit:
-        add al, '0'
-.emit:
-        mov ah, 0x0E
-        xor bx, bx
-        int 0x10
-        ret
-hex_al:                      ; AL → 两位十六进制；破坏 AX BX
-        push ax
-        shr al, 4
-        call hex_nib
-        pop ax
-        and al, 0x0F
-        call hex_nib
-        ret
 }
 
 macro PRINT_CH ch* {         ; 输出单字符；破坏 AX BX
@@ -151,51 +131,21 @@ macro PRINT_CH ch* {         ; 输出单字符；破坏 AX BX
 }
 
 ; ---------------- 统一错误出口（终态：挂机不重启） ----------------
-; 前置：AH=INT 13h 错误码，DL=盘号；实例置于唯一全局标号之下
+; 前置：DS 可用；实例置于唯一全局标号之下。终态无需保存/恢复寄存器。
 macro DISK_ERR stage_msg* {
-        push ax
-        push bx
-        push cx
-        push dx
-        push si
         mov si, stage_msg
         call print_str
-        mov si, msg_errtail       ; ' ERR='
-        call print_str
-        mov al, ah
-        call hex_al               ; 错误码
-        mov si, msg_errdrv        ; ' DRV='
-        call print_str
-        mov al, dl
-        call hex_al               ; 盘号
-        PRINT_CH 0x0D
-        PRINT_CH 0x0A
-        pop si
-        pop dx
-        pop cx
-        pop bx
-        pop ax
-.halt:
-        hlt
-        jmp .halt
+        jmp s1_hang
 }
 
 ; ---------------- CHS 读扇区（16 位 LBA，8086 纯指令） ----------------
-; 入口 AX=起始LBA, CX=扇区数, ES:BX=缓冲；成功全寄存器保持；失败不返回（AH=错误码）
+; 入口 AX=起始LBA, CX=扇区数, ES:BX=缓冲；成功 BX 前进至缓冲末尾、其余可破坏；失败不返回
 macro CHS_READ name*, drive_src*, spt_src*, heads_src*, retry_n*, err_lbl* {
 name:
-        push ax
-        push cx
-        push dx
         push bx
-        push si
-        push di
-        push bp
         mov [.lba], ax
         mov [.cnt], cx
 .loop:
-        mov byte [.retry], retry_n
-.retry:
         mov ax, [.lba]
         xor dx, dx
         mov cx, spt_src
@@ -213,38 +163,17 @@ name:
         mov ah, 0x02
         int 0x13
         jnc .next
-        mov [.errcd], ah          ; 暂存错误码（复位破坏 AH）
-        xor ah, ah
-        int 0x13                  ; 复位驱动器
-        dec byte [.retry]
-        jnz .retry
-        pop bp
-        pop di
-        pop si
-        pop bx
-        pop dx
-        pop cx
-        pop ax
-        mov ah, [.errcd]
-        jmp err_lbl
+        jmp err_lbl                ; 失败 → 终态（err_lbl 挂机，无需保存/恢复）
 .next:
         inc word [.lba]
         add bx, 0x200
         dec word [.cnt]
         jnz .loop
-        pop bp
-        pop di
-        pop si
         pop bx
-        pop dx
-        pop cx
-        pop ax
         ret
 .lba    dw 0
 .cnt    dw 0
 .sec    db 0
-.retry  db 0
-.errcd  db 0
 }
 
 ; ---------------- INT 13h 扩展检测（DL=盘号） ----------------
@@ -259,68 +188,24 @@ macro DAP_PROBE fail_lbl* {
 
 ; ---------------- DAP 读扇区（32 位 LBA，386 指令） ----------------
 ; 前置：DAP_PROBE 已通过；单次 CX ≤ 0x7F
-; 入口 EAX=起始LBA, CX=扇区数, ES:BX=缓冲, DL=盘号；成功全寄存器保持；失败不返回
+; 入口 EAX=起始LBA, CX=扇区数, ES:BX=缓冲, DL=盘号；成功 BX 保持、其余可破坏；失败不返回
 macro DAP_READ name*, retry_n*, err_lbl* {
 name:
-        push ax
-        push cx
-        push dx
         push bx
-        push si
-        push di
-        push bp
-        mov [.cnt], cx
-        mov [.off], bx
-        mov [.seg], es
-        mov dword [.lba], eax
-.loop:
-        mov byte [.dap+0], 0x10
-        mov byte [.dap+1], 0
-        mov ax, [.cnt]
-        mov [.dap+2], ax
-        mov ax, [.off]
-        mov [.dap+4], ax
-        mov ax, [.seg]
-        mov [.dap+6], ax
-        mov eax, [.lba]
-        mov [.dap+8], eax
-        mov dword [.dap+12], 0
-        mov byte [.retry], retry_n
-.retry:
+        mov word [.dap+2], cx        ; 扇区数
+        mov word [.dap+4], bx        ; 缓冲偏移
+        mov word [.dap+6], es        ; 缓冲段
+        mov dword [.dap+8], eax      ; 起始 LBA
         mov si, .dap
+        mov dl, [boot_drive]         ; DL 可能被根扫描的 mov dx,rootbuf_seg 覆盖
         mov ah, 0x42
         int 0x13
-        jnc .done
-        mov [.errcd], ah
-        xor ah, ah
-        int 0x13                  ; 复位
-        dec byte [.retry]
-        jnz .retry
-        pop bp
-        pop di
-        pop si
+        jnc .ok
+        jmp err_lbl                  ; 失败 → 终态
+.ok:
         pop bx
-        pop dx
-        pop cx
-        pop ax
-        mov ah, [.errcd]
-        jmp err_lbl
-.done:
-        pop bp
-        pop di
-        pop si
-        pop bx
-        pop dx
-        pop cx
-        pop ax
         ret
-.dap    rb 16
-.lba    rd 1
-.cnt    rw 1
-.off    rw 1
-.seg    rw 1
-.retry  rb 1
-.errcd  rb 1
+.dap    db 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 }
 
 ; ---------------- LBA-assist CHS 换算（386，MBR 回退路径用） ----------------
@@ -356,9 +241,6 @@ name:
 macro FAT_NEXT name*, fatbits*, bpb_sym*, fatbuf_seg*, fatbuf_off*, read_sec*, err_lbl* {
 name:
         push bx
-        push cx
-        push dx
-        push si
         push es
 if fatbits = FAT32
         shl eax, 2                    ; EAX=FAT 内字节偏移
@@ -367,14 +249,15 @@ if fatbits = FAT32
         div ebx                       ; EAX=FAT 内扇区数，EDX=扇区内偏移（4 对齐不跨界）
         movzx ecx, word [bpb_sym+bpbT.rsvdSecCnt]
         add eax, ecx                  ; FAT 项所在扇区 LBA
-        mov [.sec32], eax
+        push eax                      ; LBA 入栈（下述 mov ax,fatbuf_seg 会破坏 EAX）
+        mov di, dx                    ; DI=扇区内偏移（16 位变址只能用 bx+di/si）
         mov bx, fatbuf_off
         mov ax, fatbuf_seg
         mov es, ax
-        mov eax, [.sec32]
+        pop eax                       ; 恢复 LBA
         mov cx, 1
         call read_sec
-        mov eax, [es:bx+edx]          ; 32 位表项
+        mov eax, [es:bx+di]           ; 32 位表项
         cmp eax, 0x0FFFFFF8
         jb .ok
         xor eax, eax                  ; 链尾 → 0
@@ -388,17 +271,14 @@ else
         div cx                        ; AX=FAT 内扇区数，DX=扇区内偏移
         add ax, [bpb_sym+bpbT.rsvdSecCnt]   ; FAT 项所在扇区 LBA
         mov bx, fatbuf_off
+        mov di, dx                    ; DI=扇区内偏移
         mov cx, 1
-        cmp dx, 511                   ; FAT12 表项跨扇区 → 连读两扇区（缓冲 1024B）
-        jne .rd
-        inc cx
-.rd:
         push ax
         mov ax, fatbuf_seg
         mov es, ax
         pop ax
         call read_sec
-        mov ax, [es:bx+dx]            ; 16 位窗口含目标 12 位
+        mov ax, [es:bx+di]            ; 16 位窗口含目标 12 位
         test si, 1
         jz .even
         shr ax, 4                     ; 奇簇取高 12 位
@@ -412,12 +292,8 @@ else
 end if
 .ok:
         pop es
-        pop si
-        pop dx
-        pop cx
         pop bx
         ret
-.sec32  rd 1
 }
 
 ; ---------------- 按名加载文件（8.3 根目录搜索 + 簇链读取） ----------------
@@ -429,12 +305,6 @@ end if
 ; name_ptr 指向 11 字节文件名；notfound_lbl/err_lbl 均为终态（不返回）
 macro READ_FILE name*, fatbits*, bpb_sym*, rootbuf_seg*, fatbuf_seg*, fatbuf_off*, name_ptr*, read_sec*, fat_next*, err_lbl*, notfound_lbl* {
 name:
-        push ax
-        push cx
-        push dx
-        push si
-        push di
-        push es
         mov [.tbx], bx                ; 目标缓冲偏移入槽
 if fatbits = FAT32
         ; ================= FAT32 分支（386） =================
@@ -455,7 +325,6 @@ if fatbits = FAT32
         jz notfound_lbl               ; 根链耗尽未命中
         mov cl, [bpb_sym+bpbT.secPerClus]
         xor ch, ch
-        mov [.spc], cx
         sub eax, 2
         mul ecx                       ; EDX:EAX=(clu-2)*spc
         add eax, [.ds32]              ; EAX=根簇 LBA
@@ -463,10 +332,9 @@ if fatbits = FAT32
         mov es, dx
         xor bx, bx
         call read_sec                 ; 整簇 → ROOTBUF_SEG:0
-        mov cx, [.spc]
+        mov cl, [bpb_sym+bpbT.secPerClus]
+        xor ch, ch
         shl ecx, 4                    ; 本簇目录项数 = spc*16
-        mov dx, rootbuf_seg
-        mov es, dx
         xor di, di
 .entry32:
         test cx, cx
@@ -484,11 +352,9 @@ if fatbits = FAT32
         jmp .entry32
 .hit32:
         mov ax, [es:di+dirT.fstClus]
+        mov word [.clu32], ax        ; 低 16 位
         mov dx, [es:di+dirT.fstClusHI]
-        shl edx, 16
-        mov dx, ax                    ; EDX = 32 位起始簇
-        mov eax, edx
-        mov [.clu32], eax             ; → 文件链首簇
+        mov word [.clu32+2], dx      ; 高 16 位
         jmp .chain32
 .rootnext:
         mov eax, [.clu32]
@@ -499,22 +365,18 @@ if fatbits = FAT32
         mov ax, TARGET_SEG
         mov es, ax
         mov bx, [.tbx]
-        mov word [.nclu], 0
 .cluloop32:
-        inc word [.nclu]
-        cmp word [.nclu], 0x1000      ; 簇数 >4096 → FAT 环等坏链
-        ja notfound_lbl               ; → 终态报错，禁止静默灌内存
         mov eax, [.clu32]
         test eax, eax
         jz .done
         mov cl, [bpb_sym+bpbT.secPerClus]
         xor ch, ch
-        mov [.spc], cx
         sub eax, 2
         mul ecx
         add eax, [.ds32]              ; EAX=簇 LBA
         call read_sec                 ; 簇 → ES:BX
-        mov cx, [.spc]
+        mov cl, [bpb_sym+bpbT.secPerClus]
+        xor ch, ch
         shl ecx, 9                    ; 前进量 = spc*512（386 允许 imm）
         add bx, cx
         mov eax, [.clu32]
@@ -530,34 +392,26 @@ else
         mul cx                        ; AX=numFATs*fatSz16
         add ax, [bpb_sym+bpbT.rsvdSecCnt]
         mov [.rootstart], ax
-        ; rootSects = (rootEntCnt*32+511)/512
+        ; rootSects = ceil(rootEntCnt/16)（每扇区 16 个 32B 目录项）
         mov ax, [bpb_sym+bpbT.rootEntCnt]
-        shl ax, 1
-        shl ax, 1
-        shl ax, 1
-        shl ax, 1
-        shl ax, 1                     ; ×32
-        add ax, 511
-        xor dx, dx
-        mov cx, 512
-        div cx                        ; AX=rootSects
+        add ax, 15
+        mov cl, 4
+        shr ax, cl                    ; AX=rootSects
         mov [.rootsects], ax
-        ; 整个根目录区 → ROOTBUF_SEG:0
+        ; 整个根目录区 → ROOTBUF_SEG:0（read_sec 保持 ES，扫描时沿用）
         mov dx, rootbuf_seg
         mov es, dx
         xor bx, bx
         mov ax, [.rootstart]
         mov cx, [.rootsects]
         call read_sec
-        ; 扫描 rootEntCnt 项
-        mov dx, rootbuf_seg
-        mov es, dx
+        ; 扫描 rootEntCnt 项（ES 仍为 rootbuf_seg）
+        mov si, name_ptr
         xor di, di
         mov cx, [bpb_sym+bpbT.rootEntCnt]
 .entry:
         test cx, cx
         jz notfound_lbl
-        mov si, name_ptr
         push cx
         push di
         mov cx, 11
@@ -579,11 +433,7 @@ else
         mov ax, TARGET_SEG
         mov es, ax
         mov bx, [.tbx]
-        mov word [.nclu], 0
 .cluloop:
-        inc word [.nclu]
-        cmp word [.nclu], 0x1000      ; 簇数 >4096 → FAT 环等坏链
-        ja notfound_lbl               ; → 终态报错，禁止静默灌内存
         mov ax, [.clu]
         test ax, ax
         jz .done
@@ -594,29 +444,22 @@ else
         mul cx                        ; DX:AX=(clu-2)*spc
         add ax, [.datastart]          ; AX=簇 LBA
         call read_sec                 ; 簇 → ES:BX
-        mov cx, [.spc]
-        push ax                       ; 当前簇（BX 前进借用 AX 乘法）
-        mov ax, cx
-        mov cx, 512
-        mul cx                        ; AX=spc*512（DX=0）
+        mov ax, [.spc]                ; 前进量 = spc*512
+        mov cl, 9
+        shl ax, cl
         add bx, ax
-        pop ax                        ; 当前簇 → fat_next
+        mov ax, [.clu]                ; 当前簇 → fat_next
         call fat_next                 ; AX=下一簇，0=链尾
         mov [.clu], ax
         jmp .cluloop
 end if
 .done:
         mov bx, [.tbx]
-        pop es
-        pop di
-        pop si
-        pop dx
-        pop cx
-        pop ax
         ret
 .tbx        dw 0
+if fatbits <> FAT32
 .spc        dw 0
-.nclu       dw 0
+end if
 if fatbits = FAT32
 .ds32       rd 1
 .clu32      rd 1

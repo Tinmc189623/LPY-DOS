@@ -97,8 +97,11 @@ function Name11([string]$stem, [string]$ext) {
 Write-Host '== LPY-DOS 构建 =========================================='
 
 # ---- 1. 编译系统文件 ----
-Write-Host '[1/3] 编译引导扇区'
-Invoke-Fasm 'boot\boot.asm' 'boot\boot.bin'
+Write-Host '[1/3] 编译引导扇区（stage1 VBR：FAT12/16/32 三变体）'
+Invoke-Fasm 'boot\boot12.asm' 'boot\boot12.bin'
+Invoke-Fasm 'boot\boot16.asm' 'boot\boot16.bin'
+Invoke-Fasm 'boot\boot32.asm' 'boot\boot32.bin'
+Invoke-Fasm 'boot\testboot.asm' 'boot\testboot.com'
 
 Write-Host '[2/3] 编译内核 LPYOS.SYS'
 Invoke-Fasm 'kernel\kernel.asm' 'LPYOS.SYS'
@@ -120,11 +123,11 @@ Write-Host "  共编译 $($programComs.Count) 个外部程序"
 # ---- 2. 构造镜像 ----
 Write-Host '== 生成 FAT12 镜像 ======================================='
 
-$boot   = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'boot\boot.bin'))
+$boot   = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'boot\boot12.bin'))
 $kernel = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYOS.SYS'))
 $shell  = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYCMD.COM'))
 
-if ($boot.Length -gt $BytsPerSec) { throw "boot.bin 超过 512 字节" }
+if ($boot.Length -ne 512)         { throw "boot12.bin 应为 512 字节（实际 $($boot.Length)）" }
 if ($kernel.Length -gt 32768)     { throw "LPYOS.SYS 超过 32KB（引导扇区无法加载）" }
 
 # 文件清单：内核 + shell + 所有程序
