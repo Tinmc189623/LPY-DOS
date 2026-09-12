@@ -141,6 +141,20 @@ Invoke-Fasm 'src\boot\loadr.asm' 'LOADR.SYS'
 Write-Host '[3c]  编译 MBR（仅产出，不打包进软盘镜像）'
 Invoke-Fasm 'src\boot\mbr.asm' 'src\boot\MBR.BIN'
 
+Write-Host '[3d]  编译 386 保护模式扩展 EXT32.BIN（独立二进制，不进 16 位内核）'
+Invoke-Fasm 'src\kernel\arch\i386\ext32.asm' 'EXT32.BIN'
+# 若存在 i386-elf-gcc，则尝试把 C 运行时编进扩展；无工具链时跳过，asm 自带 kmain 占位
+$gcc = Get-Command i386-elf-gcc -ErrorAction SilentlyContinue
+if ($gcc) {
+    Write-Host "  发现 i386-elf-gcc，编译 C 运行时（暂不链接，仅验证语法）"
+    foreach ($c in (Get-ChildItem "$PSScriptRoot\src\kernel\arch\i386\c\*.c")) {
+        & $gcc.Source -ffreestanding -m32 -c $c.FullName -o ($c.FullName + '.o')
+        if ($LASTEXITCODE -ne 0) { throw "C 编译失败: $($c.FullName)" }
+    }
+} else {
+    Write-Host '  未发现 i386-elf-gcc，跳过 C 编译（使用 asm kmain 占位）'
+}
+
 # ---- 1.5 编译全部外部程序 ----
 Write-Host '[*]   编译 programs/*.asm（外部 .COM 程序）'
 $programComs = @()
