@@ -109,6 +109,9 @@ Invoke-Fasm 'kernel\kernel.asm' 'LPYOS.SYS'
 Write-Host '[3/3] 编译命令解释器 LPYCMD.COM'
 Invoke-Fasm 'shell\shell.asm' 'LPYCMD.COM'
 
+Write-Host '[3b]  编译 stage2 加载器 LOADR.SYS'
+Invoke-Fasm 'boot\loadr.asm' 'LOADR.SYS'
+
 # ---- 1.5 编译全部外部程序 ----
 Write-Host '[*]   编译 programs/*.asm（外部 .COM 程序）'
 $programComs = @()
@@ -130,8 +133,11 @@ $shell  = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LPYCMD.COM'))
 if ($boot.Length -ne 512)         { throw "boot12.bin 应为 512 字节（实际 $($boot.Length)）" }
 if ($kernel.Length -gt 32768)     { throw "LPYOS.SYS 超过 32KB（引导扇区无法加载）" }
 
-# 文件清单：内核 + shell + 所有程序
+# 文件清单：stage2 + 内核 + shell + 所有程序
 $items = @()
+$loadr = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'LOADR.SYS'))
+if ($loadr.Length -gt 8192) { throw "LOADR.SYS 超过 8KB" }
+$items += ,@{ name = Name11 'LOADR' 'SYS'; data = $loadr }
 $items += ,@{ name = Name11 'LPYOS' 'SYS'; data = $kernel }
 $items += ,@{ name = Name11 'LPYCMD' 'COM'; data = $shell }
 foreach ($p in $programComs) {

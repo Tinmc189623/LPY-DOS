@@ -135,7 +135,9 @@ macro PRINT_CH ch* {         ; 输出单字符；破坏 AX BX
 macro DISK_ERR stage_msg* {
         mov si, stage_msg
         call print_str
-        jmp s1_hang
+.halt:
+        hlt
+        jmp .halt
 }
 
 ; ---------------- CHS 读扇区（16 位 LBA，8086 纯指令） ----------------
@@ -148,12 +150,12 @@ name:
 .loop:
         mov ax, [.lba]
         xor dx, dx
-        mov cx, spt_src
+        mov cx, word spt_src
         div cx                    ; AX=LBA/SPT，DX=LBA%SPT
         inc dx
         mov [.sec], dl            ; 扇区号 1..SPT
         xor dx, dx
-        mov cx, heads_src
+        mov cx, word heads_src
         div cx                    ; AX=柱面，DX=磁头
         mov ch, al
         mov cl, [.sec]
@@ -269,7 +271,7 @@ else
         xor dx, dx
         mov cx, 512
         div cx                        ; AX=FAT 内扇区数，DX=扇区内偏移
-        add ax, [bpb_sym+bpbT.rsvdSecCnt]   ; FAT 项所在扇区 LBA
+        add ax, word [bpb_sym+bpbT.rsvdSecCnt]   ; FAT 项所在扇区 LBA
         mov bx, fatbuf_off
         mov di, dx                    ; DI=扇区内偏移
         mov cx, 1
@@ -303,7 +305,7 @@ end if
 ; 前置：调用方 BX = 目标缓冲偏移（目标段由本宏经 TARGET_SEG 常量自行设置）；
 ;       DS = bpb_sym 与 name_ptr 所在段（stage1/MBR: 0；stage2: 0x2000）
 ; name_ptr 指向 11 字节文件名；notfound_lbl/err_lbl 均为终态（不返回）
-macro READ_FILE name*, fatbits*, bpb_sym*, rootbuf_seg*, fatbuf_seg*, fatbuf_off*, name_ptr*, read_sec*, fat_next*, err_lbl*, notfound_lbl* {
+macro READ_FILE name*, fatbits*, bpb_sym*, rootbuf_seg*, fatbuf_seg*, fatbuf_off*, name_ptr*, read_sec*, fat_next*, err_lbl*, notfound_lbl*, tgt_seg* {
 name:
         mov [.tbx], bx                ; 目标缓冲偏移入槽
 if fatbits = FAT32
@@ -311,13 +313,13 @@ if fatbits = FAT32
         ; dataStart = rsvd + numFATs*fatSz32
         mov al, [bpb_sym+bpbT.numFATs]
         xor ah, ah
-        mov ecx, [bpb_sym+bpbT.fatSz32]
+        mov ecx, dword [bpb_sym+bpbT.fatSz32]
         mul ecx                       ; EDX:EAX = numFATs*fatSz32
         movzx ecx, word [bpb_sym+bpbT.rsvdSecCnt]
         add eax, ecx
         mov [.ds32], eax
         ; 根目录：rootClus 起的簇链逐簇扫
-        mov eax, [bpb_sym+bpbT.rootClus]
+        mov eax, dword [bpb_sym+bpbT.rootClus]
         mov [.clu32], eax
 .rootscan:
         mov eax, [.clu32]
@@ -362,7 +364,7 @@ if fatbits = FAT32
         mov [.clu32], eax
         jmp .rootscan
 .chain32:
-        mov ax, TARGET_SEG
+        mov ax, tgt_seg
         mov es, ax
         mov bx, [.tbx]
 .cluloop32:
@@ -388,12 +390,12 @@ else
         ; rootStart = rsvd + numFATs*fatSz16
         mov al, [bpb_sym+bpbT.numFATs]
         xor ah, ah
-        mov cx, [bpb_sym+bpbT.fatSz16]
+        mov cx, word [bpb_sym+bpbT.fatSz16]
         mul cx                        ; AX=numFATs*fatSz16
-        add ax, [bpb_sym+bpbT.rsvdSecCnt]
+        add ax, word [bpb_sym+bpbT.rsvdSecCnt]
         mov [.rootstart], ax
         ; rootSects = ceil(rootEntCnt/16)（每扇区 16 个 32B 目录项）
-        mov ax, [bpb_sym+bpbT.rootEntCnt]
+        mov ax, word [bpb_sym+bpbT.rootEntCnt]
         add ax, 15
         mov cl, 4
         shr ax, cl                    ; AX=rootSects
@@ -406,14 +408,14 @@ else
         mov cx, [.rootsects]
         call read_sec
         ; 扫描 rootEntCnt 项（ES 仍为 rootbuf_seg）
-        mov si, name_ptr
         xor di, di
-        mov cx, [bpb_sym+bpbT.rootEntCnt]
+        mov cx, word [bpb_sym+bpbT.rootEntCnt]
 .entry:
         test cx, cx
         jz notfound_lbl
         push cx
         push di
+        mov si, name_ptr
         mov cx, 11
         repe cmpsb                    ; DS:SI（名） vs ES:DI（项）
         pop di
@@ -430,7 +432,7 @@ else
         add ax, [.rootsects]
         mov [.datastart], ax
         ; 恢复目标缓冲
-        mov ax, TARGET_SEG
+        mov ax, tgt_seg
         mov es, ax
         mov bx, [.tbx]
 .cluloop:

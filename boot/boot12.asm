@@ -17,5 +17,5 @@ BPB_HEADS        = 2
 BPB_HIDD         = 0
 BPB_TOT32        = 0
 FATBITS          = 1                 ; FAT12
-TARGET_NAME      equ 'LPYOS   SYS'   ; 过渡期目标（子项目 4 后切 IO.SYS）
+TARGET_NAME      equ 'LOADR   SYS'   ; 过渡期目标（子项目 4 后切 IO.SYS）
 include 'boot.asm'

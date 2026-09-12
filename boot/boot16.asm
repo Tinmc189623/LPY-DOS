@@ -17,5 +17,5 @@ BPB_HEADS        = 16
 BPB_HIDD         = 63
 BPB_TOT32        = 0
 FATBITS          = 2                 ; FAT16
-TARGET_NAME      equ 'LPYOS   SYS'
+TARGET_NAME      equ 'LOADR   SYS'
 include 'boot.asm'

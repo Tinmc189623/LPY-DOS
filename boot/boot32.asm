@@ -19,5 +19,5 @@ BPB_TOT32        = 66583
 BPB_FATSZ32      = 513
 BPB_ROOTCLUS     = 2
 FATBITS          = 3                 ; FAT32
-TARGET_NAME      equ 'LPYOS   SYS'
+TARGET_NAME      equ 'LOADR   SYS'
 include 'boot.asm'

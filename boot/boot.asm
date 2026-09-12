@@ -55,6 +55,8 @@ else
 end if
 
 ; ---------------- 扩展块 @0x40 ----------------
+; ext_target = TARGET_NAME（stage1 据此搜索并加载到 0x2000）。stage2 LOADR.SYS
+;  不读此处——其内核目标名在自身映像内固定为 LPYOS.SYS（见 loadr.asm）。
 ext_target      db TARGET_NAME
 ext_media       db 0
 ext_magic       dw EXT_MAGIC
@@ -89,7 +91,7 @@ end if
         xor bx, bx
         call s1_load
         jmp STAGE2_SEG:0
-READ_FILE s1_load, FATBITS, VBR_LIN, ROOTBUF_SEG, ROOTBUF_SEG, ROOTBUF_FATOFF, ext_target, s1_read, s1_next, s1_err_disk, s1_noloader
+READ_FILE s1_load, FATBITS, VBR_LIN, ROOTBUF_SEG, ROOTBUF_SEG, ROOTBUF_FATOFF, ext_target, s1_read, s1_next, s1_err_disk, s1_noloader, STAGE2_SEG
 
 ; ---------------- 终态错误路径 ----------------
 s1_noloader:
