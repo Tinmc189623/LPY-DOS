@@ -9,9 +9,7 @@ src/build/
 
 # 调试转储与日志
 *.log
-tools/*_out.txt
-tools/dump_*.txt
-tools/verify_*.txt
+tools/*.txt
 tools/vga2.bin
 
 # 本地大目录（勿入库）
