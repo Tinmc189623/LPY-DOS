@@ -72,8 +72,6 @@ caller_ds        dw 0            ; INT 21h 调用者 DS（参数段）
 caller_es        dw 0            ; INT 21h 调用者 ES
 term_request     db 0            ; 程序终止请求标志
 term_code        db 0            ; 退出码（AH=4C）
-verify_flag      db 0            ; AH=2E 写后校验开关（0=关,1=开）
-ctrlc_flag       db 1            ; AH=33 Ctrl-C 检测开关（1=开）
 ; 文件句柄表 0/1/2 设备句柄初始化值
 handle_init      dw 8000h, 8001h, 8002h
 ; BPB 现场数据（从磁盘引导扇区读出）
@@ -89,6 +87,11 @@ fat_start        dw 1           ; FAT 区起始扇区
 root_dir_start   dw 19          ; 根目录区起始扇区
 root_dir_sects   dw 15          ; 根目录区占扇区数
 data_start       dw 34          ; 数据区起始扇区
+; 注意：verify_flag/ctrlc_flag 必须保持在 BPB 块之后——若插到
+; term_code 与 handle_init 之间，bpb_sec_per_clus 会被启动期野写命中清零，
+; 引导后无提示符（野写目标与内核布局相关，见操作记录 2026-09-12）
+verify_flag      db 0            ; AH=2E 写后校验开关（0=关,1=开）
+ctrlc_flag       db 1            ; AH=33 Ctrl-C 检测开关（1=开）
 ; 磁盘传输区（DTA，对标 MS-DOS，用于查找文件结果）
 ; 默认 DTA 指向内核 PSP:0x80；INT 21h AH=1A 可重定向
 dta_seg         dw SYS_PSP_SEG   ; DTA 段
