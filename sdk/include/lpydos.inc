@@ -20,8 +20,8 @@
 ;  SDK 版本（独立于系统 API 版本，供第三方程序区分 SDK 与系统版本）
 ;  打包格式：0xMMmmrr（MM 主版本 / mm 次版本 / rr 修订），当前为 1.0.0
 ; ----------------------------------------------------------------------------
-LPYDOS_SDK_VER_MAJOR = 1
-LPYDOS_SDK_VER_MINOR = 0
+LPYDOS_SDK_VER_MAJOR = 27
+LPYDOS_SDK_VER_MINOR = 1
 LPYDOS_SDK_VER_PATCH = 0
 LPYDOS_SDK_VER = (LPYDOS_SDK_VER_MAJOR shl 16) or (LPYDOS_SDK_VER_MINOR shl 8) or LPYDOS_SDK_VER_PATCH
 
@@ -34,11 +34,19 @@ AH_READ_CH    = 01h    ; 读字符带显
 AH_WRITE_CH   = 02h    ; 写字符 DL
 AH_WRITE_MSG  = 09h    ; 写 $ 结尾串 DS:DX
 AH_READ_LINE  = 0Ah    ; 缓冲输入 DS:DX
+AH_DISK_RESET = 0Dh    ; 磁盘复位
+AH_SET_DRIVE  = 0Eh    ; 选择默认驱动器 DL
 AH_GET_DRIVE  = 19h    ; 取当前驱动器
 AH_SET_DTA    = 1Ah    ; 设 DTA
+AH_SET_DATE   = 2Bh    ; 设日期 CX/DH/DL
 AH_GET_DATE   = 2Ah    ; 取日期
 AH_GET_TIME   = 2Ch    ; 取时间
+AH_SET_TIME   = 2Dh    ; 设时间
+AH_SET_VERIFY = 2Eh    ; 写后校验开关 AL
+AH_GET_DTA    = 2Fh    ; 取 DTA ES:BX
 AH_GET_VER    = 30h    ; 取版本号
+AH_CTRLC      = 33h    ; 取/设 Ctrl-C AL=0/1
+AH_INDOS      = 34h    ; 取 InDOS 指针
 AH_MKDIR      = 39h    ; 建目录
 AH_RMDIR      = 3Ah    ; 删目录
 AH_CHDIR      = 3Bh    ; 换目录
@@ -48,11 +56,15 @@ AH_CLOSE      = 3Eh    ; 关文件
 AH_READ       = 3Fh    ; 读文件
 AH_WRITE      = 40h    ; 写文件
 AH_DELETE     = 41h    ; 删文件
+AH_IOCTL      = 44h    ; 设备 IOCTL
 AH_GET_CWD    = 47h    ; 取当前目录
 AH_EXEC       = 4Bh    ; 执行程序
 AH_TERM_CD    = 4Ch    ; 带退出码退出
+AH_GET_RETCODE= 4Dh    ; 取子进程返回码
 AH_FIND_FIRST = 4Eh    ; 找首匹配
 AH_FIND_NEXT  = 4Fh    ; 找下一匹配
+AH_GET_VERIFY = 54h    ; 取校验开关
+AH_ALLOC_STRAT= 58h    ; 取/设分配策略
 AH_GET_PSP    = 62h    ; 取 PSP
 
 ; 标准句柄（AH=3F/40 用）
