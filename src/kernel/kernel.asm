@@ -256,11 +256,12 @@ reset_curdir:
 ; ============================================================================
 ;  包含子模块
 ; ============================================================================
-include 'api.asm'       ; INT 21h 分发与系统服务
-include 'disk.asm'      ; 磁盘底层驱动
-include 'fat.asm'       ; FAT12/16 文件系统
-include 'memory.asm'    ; MCB 内存管理与 EXEC
-include 'gfx.asm'       ; VGA 图形服务（INT 21h AH=70..7A）
+include 'syscall\int21.asm'   ; INT 21h 分发与系统服务
+include 'io\disk.asm'         ; 磁盘底层驱动
+include 'fs\fat.asm'          ; FAT12/16 文件系统
+include 'mem\memory.asm'      ; MCB 内存管理与 EXEC
+include 'gfx\gfx.asm'         ; VGA 图形服务（INT 21h AH=70..7A）
+include 'arch\i386\pm.asm'    ; 386 保护模式脚手架（GDT/A20/进入PM）
 
 ; ============================================================================
 ;  reshell：重新加载并执行命令解释器
