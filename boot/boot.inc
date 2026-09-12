@@ -184,7 +184,7 @@ macro DAP_PROBE fail_lbl* {
         mov bx, 0x55AA
         int 0x13
         jc fail_lbl
-        cmp bx, 0x55AA
+        cmp bx, 0xAA55
         jne fail_lbl
 }
 
@@ -217,12 +217,12 @@ macro LBA_ASSIST name*, spt_src*, heads_src* {
 name:
         push ecx
         push ebx
-        mov ebx, spt_src
+        movzx ebx, word spt_src
         xor edx, edx
         div ebx                   ; EAX=LBA/SPT，EDX=LBA%SPT
         inc edx
         mov ecx, edx              ; 扇区号 1..63
-        mov ebx, heads_src
+        movzx ebx, word heads_src
         xor edx, edx
         div ebx                   ; EAX=柱面，EDX=磁头
         mov dh, dl
@@ -263,6 +263,25 @@ if fatbits = FAT32
         cmp eax, 0x0FFFFFF8
         jb .ok
         xor eax, eax                  ; 链尾 → 0
+else if fatbits = FAT16
+        mov si, ax                    ; SI=簇号
+        shl ax, 1                     ; AX=簇号*2（FAT16 每项 2 字节）
+        xor dx, dx
+        mov cx, 512
+        div cx                        ; AX=FAT 内扇区数，DX=扇区内偏移
+        add ax, word [bpb_sym+bpbT.rsvdSecCnt]   ; FAT 项所在扇区 LBA
+        mov bx, fatbuf_off
+        mov di, dx                    ; DI=扇区内偏移
+        mov cx, 1
+        push ax
+        mov ax, fatbuf_seg
+        mov es, ax
+        pop ax
+        call read_sec
+        mov ax, [es:bx+di]            ; 16 位表项
+        cmp ax, 0xFFF8
+        jb .ok
+        xor ax, ax                    ; 链尾 → 0
 else
         mov si, ax                    ; SI=簇号
         mov ax, si
@@ -439,6 +458,8 @@ else
         mov ax, [.clu]
         test ax, ax
         jz .done
+        dec word [.clucnt]          ; 坏链防护：自环/超长链在 4096 簇内终止
+        jz notfound_lbl
         mov cl, [bpb_sym+bpbT.secPerClus]
         xor ch, ch
         mov [.spc], cx
@@ -470,5 +491,8 @@ else
 .rootsects  dw 0
 .datastart  dw 0
 .clu        dw 0
+end if
+if fatbits <> FAT32
+.clucnt     dw 4096          ; 坏链防护初值：每簇 dec，到 0 判终止
 end if
 }

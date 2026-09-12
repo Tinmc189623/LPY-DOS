@@ -112,6 +112,9 @@ Invoke-Fasm 'shell\shell.asm' 'LPYCMD.COM'
 Write-Host '[3b]  编译 stage2 加载器 LOADR.SYS'
 Invoke-Fasm 'boot\loadr.asm' 'LOADR.SYS'
 
+Write-Host '[3c]  编译 MBR（仅产出，不打包进软盘镜像）'
+Invoke-Fasm 'boot\mbr.asm' 'boot\MBR.BIN'
+
 # ---- 1.5 编译全部外部程序 ----
 Write-Host '[*]   编译 programs/*.asm（外部 .COM 程序）'
 $programComs = @()

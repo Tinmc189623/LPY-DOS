@@ -62,6 +62,7 @@ kern_version    db 1,0,0        ; 主/次/修订
 ;  系统变量区
 ; ----------------------------------------------------------------------------
 boot_drive      db 0            ; 引导驱动器号（0=A）
+partition_base  dw 0            ; 分区起始 LBA（MBR 引导时由 CTX 块 +2 提供；软盘=0）
 current_drive   db 0            ; 当前默认驱动器
 current_dir     db 64 dup(0)    ; 当前目录串（如 '\SUB\DIR'，不含盘符）
 cur_dir_first   dw 0            ; 当前目录第一个簇（0=根目录）
@@ -185,32 +186,39 @@ setup_ivt:
 ;  入口：无，出口：无
 ; ----------------------------------------------------------------------------
 load_bpb:
-        mov ax, 0               ; LBA 0 = 引导扇区
-        mov cx, 1
-        mov bx, dir_buf         ; 复用 dir_buf 作为临时扇区缓冲
-        call read_sector_lba    ; 读入 dir_buf
-        ; 从引导扇区拷贝 BPB 字段
-        mov si, dir_buf+11      ; 引导扇区 BPB 起始（跳过跳转与 OEM 名）
+        ; BPB 由 stage2 LOADR.SYS 复制到 0x0000:0x0510（前 64B VBR）。
+        ; 直接从该副本读取，不再回读 LBA 0（硬盘上 LBA 0 是 MBR，无 FAT BPB）。
+        push es
+        xor ax, ax
+        mov es, ax
+        mov si, 0x0510 + 11     ; BPB 字段起点（跳过跳转与 OEM 名）
         mov di, bpb_byts_per_sec
-        mov ax, [si+0]          ; 每扇区字节数
+        mov ax, [es:si+0]       ; 每扇区字节数
         mov [di], ax
-        mov al, [si+2]          ; 每簇扇区数
+        mov al, [es:si+2]       ; 每簇扇区数
         xor ah, ah
         mov [bpb_sec_per_clus], ax
-        mov ax, [si+3]          ; 保留扇区数
+        mov ax, [es:si+3]       ; 保留扇区数
         mov [bpb_rsvd_sec_cnt], ax
-        mov al, [si+5]          ; FAT 份数
+        mov al, [es:si+5]       ; FAT 份数
         xor ah, ah
         mov [bpb_num_fats], ax
-        mov ax, [si+6]          ; 根目录项数
+        mov ax, [es:si+6]       ; 根目录项数
         mov [bpb_root_ent_cnt], ax
-        mov ax, [si+11]         ; 每 FAT 扇区数（偏移 +11 相对 BPB 起）
+        mov ax, [es:si+11]      ; 每 FAT 扇区数（偏移 +11 相对 BPB 起）
         mov [bpb_fat_sz16], ax
-        mov ax, [si+13]         ; 每磁道扇区数
+        mov ax, [es:si+13]      ; 每磁道扇区数
         mov [bpb_sec_per_trk], ax
-        mov ax, [si+15]         ; 磁头数
+        mov ax, [es:si+15]      ; 磁头数
         mov [bpb_num_heads], ax
-        ; 计算派生值
+        pop es
+        ; 分区起始 LBA（CT 块 0:0x0502，软盘为 0）
+        push es
+        xor ax, ax
+        mov es, ax
+        mov ax, [es:0x0502]
+        mov [partition_base], ax
+        pop es
         mov ax, [bpb_rsvd_sec_cnt]
         mov [fat_start], ax
         mov ax, [bpb_num_fats]

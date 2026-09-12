@@ -33,6 +33,7 @@ lba_to_chs:
 ; ----------------------------------------------------------------------------
 read_sector_lba:
         push ax cx dx
+        add ax, [partition_base]   ; 卷内 LBA + 分区起始 → 绝对 LBA
         call lba_to_chs
         mov dl, [boot_drive]
         mov al, 1
