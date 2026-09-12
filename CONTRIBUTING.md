@@ -36,8 +36,8 @@ pwsh -NoProfile -Command ". ./tests/qemu.ps1; Start-LpyQemu -Image 'bin/LPY-DOS.
 
 ## 协作规范（重要）
 
-1. **操作登记**：任何操作（包括成功与失败）必须事先/事后登记在
-   `operation-record-document.md`（留言板登记计划，操作记录登记结果与取证）。
+1. **操作登记**：任何操作（包括成功与失败）必须事先/事后登记在内部操作记录
+   （维护者与协作文档，不入公开仓库）。
 2. **分支模型**：功能开发在 `feature/*` 分支进行，经作者确认后并入 main。
 3. **提交信息**：遵循 Conventional Commits（`feat:` / `fix:` / `refactor:` /
    `build:` / `docs:` / `chore:`），一次提交一个逻辑单元。

@@ -1,7 +1,7 @@
-# 编辑器与工具配置目录（rules 被 CLAUDE.md 引用，需入库；specs 含调试产物不入库）
+# 编辑器与工具配置目录
 .trae/
 .vscode/
-.coder-naogua/specs/
+.coder-*/
 
 # 构建产物（build.ps1 统一输出到 bin/）
 bin/
@@ -16,11 +16,9 @@ tools/vga2.bin
 plexsdesk/
 deck_slides/
 
-# 内部协作文件（AI 规则/日志/计划），不入公开仓库
-operation-record-document.md
-CLAUDE.md
-CLAUDE.local.md
-AGENTS.md
-AGENT.md
-.coder-naogua/
-docs/superpowers/
+# 本地工作文件
+/CL*
+/AG*
+/AGENT*
+/docs/super*/
+/*record*.md
