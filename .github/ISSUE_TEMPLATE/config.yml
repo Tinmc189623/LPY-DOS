@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Gitee 镜像仓库
+    url: https://gitee.com/nexsteaduser/lpy-dos
+    about: 主仓库的 Gitee 镜像，模板见 .gitee/ 目录
