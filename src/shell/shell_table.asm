@@ -1,0 +1,69 @@
+; ============================================================================
+;  命令表：12 字节名字（0 结尾对齐）+ 2 字节处理例程
+; ============================================================================
+cmd_table:
+        db 'DIR',0
+        rb 12-4
+        dw cmd_dir
+        db 'CD',0
+        rb 12-3
+        dw cmd_cd
+        db 'CHDIR',0
+        rb 12-6
+        dw cmd_cd
+        db 'MD',0
+        rb 12-3
+        dw cmd_md
+        db 'MKDIR',0
+        rb 12-6
+        dw cmd_md
+        db 'RD',0
+        rb 12-3
+        dw cmd_rd
+        db 'RMDIR',0
+        rb 12-6
+        dw cmd_rd
+        db 'DEL',0
+        rb 12-4
+        dw cmd_del
+        db 'ERASE',0
+        rb 12-6
+        dw cmd_del
+        db 'REN',0
+        rb 12-4
+        dw cmd_ren
+        db 'RENAME',0
+        rb 12-7
+        dw cmd_ren
+        db 'TYPE',0
+        rb 12-5
+        dw cmd_type
+        db 'COPY',0
+        rb 12-5
+        dw cmd_copy
+        db 'CLS',0
+        rb 12-4
+        dw cmd_cls
+        db 'VER',0
+        rb 12-4
+        dw cmd_ver
+        db 'DATE',0
+        rb 12-5
+        dw cmd_date
+        db 'TIME',0
+        rb 12-5
+        dw cmd_time
+        db 'ECHO',0
+        rb 12-5
+        dw cmd_echo
+        db 'HELP',0
+        rb 12-5
+        dw cmd_help
+        db 'REM',0
+        rb 12-4
+        dw cmd_rem
+        db 'EXIT',0
+        rb 12-5
+        dw cmd_exit
+        db 0                    ; 表尾
+
